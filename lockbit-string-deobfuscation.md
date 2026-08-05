@@ -1,3 +1,9 @@
+---
+title: "LockBit String Deobfuscation: Reversing Affine Cipher DLL Loading with Ghidra"
+description: "Technical analysis of LockBit ransomware string obfuscation — affine cipher, dynamic API resolution, and IAT evasion, reversed with Ghidra."
+author: Gino Maihuiri
+date: 2026-08-05
+---
 # LockBit String Deobfuscation: Reversing Affine Cipher DLL Loading with Ghidra
 
 **Author:** Gino Aldair Maihuiri Romero  
