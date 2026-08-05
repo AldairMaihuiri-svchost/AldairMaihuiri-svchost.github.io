@@ -346,7 +346,7 @@ If eax == 0 → ZF = 1. Equivalent to `if (strcmp(...) == 0)` in C.
 Jump if Not Equal — fires when ZF = 0 (strings differ). Jump offset:
 `0x...578c + 2 + 0x16 = 0x...57a4`. Confirmed.
 
-**3 — `lea 0xb42(%rip), %rax`** (7 bytes: `48 8d 05 b5 0b 00 00`)  
+**3 — `lea 0xb42(%rip), %rax`** (7 bytes: `48 8d 05 42 0b 00 00`)  
 Loads the address of the "Access granted" string. RIP-relative addressing:
 RIP points to the **next** instruction at the time of calculation.
 `0x...578e + 7 = 0x...5795`, then `0x...5795 + 0xb42 = 0x...62d7`.
@@ -371,7 +371,7 @@ Sets the return value of `main` to 0 (success).
 Unconditional jump to the end of `main`, skipping the error branch.
 `0x...57a2 + 5 + 0x11 = 0x...57b8`. Confirmed.
 
-**8 — `lea 0xb42(%rip), %rax`** (7 bytes: `48 8d 05 b5 0b 00 00`) — error branch  
+**8 — `lea 0xb42(%rip), %rax`** (7 bytes: `48 8d 05 42 0b 00 00`) — error branch  
 Same principle, different target. `0x...57a4 + 7 = 0x...57ab`,
 then `0x...57ab + 0xb42 = 0x...62ed`.
 
@@ -393,12 +393,12 @@ Calls `print_err`. `0x...57ae + 5 + 0xfffffede = 0x...5691`. Confirmed.
 |---|---|---|---|---|---|
 | `0x...578a` | `85 c0` | `test %eax,%eax` | eax, flags | 2 | Check eax == 0 |
 | `0x...578c` | `75 16` | `jne 0x...57a4` | flags | 2 | Jump if eax != 0 |
-| `0x...578e` | `48 8d 05 b5 0b 00 00` | `lea 0xb42(%rip),%rax` | rip, rax | 7 | Address of "Access granted" |
+| `0x...578e` | `48 8d 05 42 0b 00 00` | `lea 0xb42(%rip),%rax` | rip, rax | 7 | Address of "Access granted" |
 | `0x...5795` | `48 89 c7` | `mov %rax,%rdi` | rax, rdi | 3 | Prepare success message |
 | `0x...5798` | `e8 6f fe ff ff` | `call print_ok` | rip, rsp | 5 | Call success function |
 | `0x...579d` | `b8 00 00 00 00` | `mov $0x0,%eax` | rax | 5 | return 0 |
 | `0x...57a2` | `e9 11 00 00 00` | `jmp 0x...57b8` | rip | 5 | Jump to end |
-| `0x...57a4` | `48 8d 05 b5 0b 00 00` | `lea 0xb42(%rip),%rax` | rip, rax | 7 | Address of "Access denied" |
+| `0x...57a4` | `48 8d 05 42 0b 00 00` | `lea 0xb42(%rip),%rax` | rip, rax | 7 | Address of "Access denied" |
 | `0x...57ab` | `48 89 c7` | `mov %rax,%rdi` | rax, rdi | 3 | Prepare error message |
 | `0x...57ae` | `e8 de fe ff ff` | `call print_err` | rip, rsp | 5 | Call error function |
 
