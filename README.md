@@ -6,7 +6,7 @@ Systems engineering student and self-directed security researcher.
 I focus on **reverse engineering, malware analysis, and exploit development**.
 
 - Currently analyzing LockBit ransomware internals (Ghidra, static + dynamic)
-- Working toward OSEE — building Linux/GDB proficiency from a Windows RE background
+- Working toward 301 — building Linux/GDB proficiency from a Windows RE background
 - Tools: Ghidra, x64dbg, GDB, Python, C/C++
 - Writing technical writeups and educational malware analysis resources
 
