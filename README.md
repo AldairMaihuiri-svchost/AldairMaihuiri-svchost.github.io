@@ -15,4 +15,4 @@ I focus on **reverse engineering, malware analysis, and exploit development**.
 - [Crackme 01 — Hardcoded strcmp with GDB](https://ginomaihuiri.github.io/crackmes/cm1-strcmp)
 
 ### Reach me
-[GitHub](https://github.com/GinoMaihuiri) · [LinkedIn](https://www.linkedin.com/in/gino-aldair-maihuiri-romero-324b80326/) · [X](https://x.com/AldairMaihuiri)
+[GitHub](https://github.com/GinoMaihuiri) · [LinkedIn](https://www.linkedin.com/in/AldairMaihuiri) · [X](https://x.com/AldairMaihuiri)
