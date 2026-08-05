@@ -12,6 +12,7 @@ I focus on **reverse engineering, malware analysis, and exploit development**.
 
 ### Writeups & research
 - [LockBit String Deobfuscation — Affine Cipher DLL Loading](https://ginomaihuiri.github.io/lockbit-string-deobfuscation)
+- [Crackme 01 — Hardcoded strcmp with GDB](https://ginomaihuiri.github.io/crackmes/cm1-strcmp)
 
 ### Reach me
 [GitHub](https://github.com/GinoMaihuiri)
