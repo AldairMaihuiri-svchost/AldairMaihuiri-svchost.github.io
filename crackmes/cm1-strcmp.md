@@ -1,13 +1,13 @@
 ---
 title: "Crackme 01 — Hardcoded strcmp: Finding the Password with GDB"
 description: "Step-by-step writeup of cm1_strcmp: initial recon, GDB breakpoints, x86_64 calling convention, AVX2 strcmp internals, and full assembly flow analysis."
-author: Gino Maihuiri
+author: Aldair Maihuiri
 date: 2026-08-02
 ---
 
 # Crackme 01 — Hardcoded strcmp: Finding the Password with GDB
 
-**Author:** Gino Maihuiri  
+**Author:** Aldair Maihuiri  
 **Date:** August 2, 2026  
 **Binary:** cm1_strcmp (ELF 64-bit, not stripped)  
 **Tools:** GDB, file, chmod  
@@ -461,5 +461,5 @@ from hardcoded comparisons to obfuscated checks, custom hash functions, and anti
 
 ---
 
-© 2026 Gino Maihuiri. All rights reserved.  
+© 2026 Aldair Maihuiri. All rights reserved.  
 Sharing with attribution is welcome. Unauthorized reproduction is prohibited.
