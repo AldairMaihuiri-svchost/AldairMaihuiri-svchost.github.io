@@ -6,7 +6,7 @@ Systems engineering student and self-directed security researcher.
 I focus on **reverse engineering, malware analysis, and exploit development**.
 
 - Currently analyzing LockBit ransomware internals (Ghidra, static + dynamic)
-- Working toward 301 — building Linux/GDB proficiency from a Windows RE background
+- Working toward OSED (EXP-301) — building Linux/GDB proficiency from a Windows RE background
 - Tools: Ghidra, x64dbg, GDB, Python, C/C++
 - Writing technical writeups and educational malware analysis resources
 
@@ -16,3 +16,5 @@ I focus on **reverse engineering, malware analysis, and exploit development**.
 
 ### Reach me
 [GitHub](https://github.com/GinoMaihuiri) · [LinkedIn](https://www.linkedin.com/in/AldairMaihuiri) · [X](https://x.com/AldairMaihuiri)
+### Profiles
+[YARAify](https://yaraify.abuse.ch/user/51747/) · [MalwareBazaar](https://bazaar.abuse.ch/user/51747/)
