@@ -1,6 +1,6 @@
 # GinoMaihuiri.github.io
 Gino Aldair Maihuiri Romero Security research writeups — LockBit analysis, crackmes, binary exploitation
-## Hi, I'm Gino Maihuiri 
+## Hi, I'm Aldair Maihuiri 
 
 Systems engineering student and self-directed security researcher.  
 I focus on **reverse engineering, malware analysis, and exploit development**.
