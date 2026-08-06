@@ -1,9 +1,13 @@
-🇪🇸 [Leer en español](https://ginomaihuiri.github.io/crackmes/cm1-strcmp-es)
 ---
-title: "Crackme 01 — Hardcoded strcmp: Finding the Password with GDB"
-description: "Step-by-step writeup of cm1_strcmp: initial recon, GDB breakpoints, x86_64 calling convention, AVX2 strcmp internals, and full assembly flow analysis."
+title: "Crackme 01 — strcmp hardcodeado: encontrando la contraseña con GDB"
+description: "Writeup paso a paso de cm1_strcmp: reconocimiento inicial, breakpoints en GDB, convención de llamadas x86_64, internals de strcmp con AVX2 y análisis completo del flujo en ensamblador."
 author: Aldair Maihuiri
 date: 2026-08-02
+---
+
+🇬🇧 [Read in English](https://ginomaihuiri.github.io/crackmes/cm1-strcmp)
+
+# Crackme 01 — strcmp hardcodeado: encontrando la contraseña con GDB
 ---
 
 # Crackme 01 — Hardcoded strcmp: Finding the Password with GDB
