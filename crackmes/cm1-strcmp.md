@@ -1,3 +1,4 @@
+🇪🇸 [Leer en español](https://ginomaihuiri.github.io/crackmes/cm1-strcmp-es)
 ---
 title: "Crackme 01 — Hardcoded strcmp: Finding the Password with GDB"
 description: "Step-by-step writeup of cm1_strcmp: initial recon, GDB breakpoints, x86_64 calling convention, AVX2 strcmp internals, and full assembly flow analysis."
