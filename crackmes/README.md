@@ -8,3 +8,10 @@ Written by **Gino Aldair Maihuiri Romero** | [ginomaihuiri.github.io](https://gi
 ## Writeups
 
 - [Crackme 01 — Hardcoded strcmp with GDB](https://ginomaihuiri.github.io/crackmes/cm1-strcmp)
+
+## Challenge binaries
+
+The crackmes themselves are available here if you want to try them before reading
+the writeups:
+
+👉 [github.com/GinoMaihuiri/Crackmes](https://github.com/GinoMaihuiri/Crackmes)
