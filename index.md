@@ -29,9 +29,11 @@ Currently analyzing LockBit ransomware internals and working toward OSED (EXP-30
   Finding a hardcoded password through the x86_64 calling convention, plus a look at
   the AVX2 glibc strcmp implementation and the full assembly decision flow.
 
-All challenge binaries: [github.com/GinoMaihuiri/Crackmes](https://github.com/GinoMaihuiri/Crackmes)
+- **[Crackme 02 — Numeric Serial: Deduction by Disassembly and Live Patching with Rust](crackmes/cm2-numeric)**
+  Serial deduced from the cmpl opcode via GDB, then bypassed entirely with a Rust
+  ptrace patcher — CPU state manipulation via Zero Flag.
 
----
+All challenge binaries: [github.com/GinoMaihuiri/Crackmes](https://github.com/GinoMaihuiri/Crackmes)
 
 ## Detection engineering
 
