@@ -5,7 +5,7 @@ author: Aldair Maihuiri
 date: 2026-08-07
 ---
 
-🇪🇸 [Leer en español](https://ginomaihuiri.github.io/crackmes/cm2-numeric-es)
+[Leer en español](https://ginomaihuiri.github.io/crackmes/cm2-numeric-es)
 
 # Crackme 02 — Numeric Serial: Deduction by Disassembly and Live Patching with Rust
 
