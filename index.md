@@ -26,17 +26,17 @@ Currently analyzing LockBit ransomware internals and working toward OSED (EXP-30
 
 - **[Crackme 01 — Hardcoded strcmp with GDB](crackmes/cm1-strcmp)**
   ([versión en español](crackmes/cm1-strcmp-es))
-  Finding a hardcoded password through the x86_64 calling convention, plus a look at
-  the AVX2 glibc strcmp implementation and the full assembly decision flow.
 
 - **[Crackme 02 — Numeric Serial: Deduction by Disassembly and Live Patching with Rust](crackmes/cm2-numeric)**
-  Serial deduced from the cmpl opcode via GDB, then bypassed entirely with a Rust
-  ptrace patcher — CPU state manipulation via Zero Flag.
 
 - **[Crackme 03 — XOR Stack Strings: Ciphertext Embedded in the Instruction Stream](crackmes/cm3-xor)**
   ([versión en español](crackmes/cm3-xor-es))
-  XOR-encrypted password stored as immediate values in the instruction stream,
-  decrypted to the stack at runtime before strcmp.
+
+- **[Crackme 04 — Pure Stack Strings: Ten movb Instructions That strings Cannot See](crackmes/cm4-stackstring)**
+  ([versión en español](crackmes/cm4-stackstring-es))
+
+- **[Crackme 05 — Transform Before Compare: The First Crackme Without strcmp](crackmes/cm5-transform)**
+  ([versión en español](crackmes/cm5-transform-es))
 
 All challenge binaries: [github.com/GinoMaihuiri/Crackmes](https://github.com/GinoMaihuiri/Crackmes)
 
