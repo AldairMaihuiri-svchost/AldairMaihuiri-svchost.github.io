@@ -718,7 +718,7 @@ malware easier to decompose during analysis.
 *Part of a crackme writeup series covering progressively harder binaries.*
 
 *Challenge binaries: [github.com/GinoMaihuiri/Crackmes](https://github.com/GinoMaihuiri/Crackmes)*
-*Tooling: [github.com/GinoMaihuiri/Crackmes/tree/main/tooling](https://github.com/GinoMaihuiri/Crackmes/tree/main/tooling)*
+*Tooling: [github.com/GinoMaihuiri/Crackmes/tree/main/Tooling](https://github.com/GinoMaihuiri/Crackmes/tree/main/Tooling)*
 *All writeups: [ginomaihuiri.github.io](https://ginomaihuiri.github.io)*
 
 ---
