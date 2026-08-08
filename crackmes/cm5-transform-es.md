@@ -714,7 +714,7 @@ análisis.
 *Parte de una serie de writeups de crackmes cubriendo binarios progresivamente más difíciles.*
 
 *Los binarios están disponibles en [github.com/GinoMaihuiri/Crackmes](https://github.com/GinoMaihuiri/Crackmes)*
-*Tooling: [github.com/GinoMaihuiri/Crackmes/tree/main/tooling](https://github.com/GinoMaihuiri/Crackmes/tree/main/tooling)*
+*Tooling: [github.com/GinoMaihuiri/Crackmes/tree/main/Tooling](https://github.com/GinoMaihuiri/Crackmes/tree/main/Tooling)*
 *Todos los writeups: [ginomaihuiri.github.io](https://ginomaihuiri.github.io)*
 
 ---
