@@ -45,13 +45,13 @@ All challenge binaries: [github.com/GinoMaihuiri/Crackmes](https://github.com/Gi
 Custom ptrace instrumentation, binary patchers, and analysis scripts built alongside
 the crackme research. Each tool targets a specific low-level technique.
 
-- **[cm2 ptrace patcher — Zero Flag Hijacking](https://github.com/GinoMaihuiri/Crackmes/tree/main/tooling/cm2_ptrace_patcher)**
+- **[cm2 ptrace patcher — Zero Flag Hijacking](https://github.com/GinoMaihuiri/Crackmes/tree/main/tooling/cm2_patcher)**
   Rust process that forces "Serial válido" with any input by manipulating EFLAGS directly via ptrace — CPU state manipulation, no binary modification.
 
-- **[cm5 Stack Canary Corruption via ptrace](https://github.com/GinoMaihuiri/Crackmes/tree/main/tooling/cm5_corrupting_stack_canary)**
+- **[cm5 Stack Canary Corruption via ptrace](https://github.com/GinoMaihuiri/Crackmes/blob/main/tooling/cm5_corrupting_stack_canary/cm5_Stack%20Canary%20Corruption%20via%20ptrace.rs)**
   Corrupts the GCC stack canary after it is stored. Demonstrates SSP detection behavior.
 
-- **[cm5 Stack Canary Bypass via ptrace](https://github.com/GinoMaihuiri/Crackmes/tree/main/tooling/cm5_corrupting_stack_canary)**
+- **[cm5 Stack Canary Bypass via ptrace](https://github.com/GinoMaihuiri/Crackmes/blob/main/tooling/cm5_corrupting_stack_canary/Stack%20Canary%20Bypass%20via%20ptrace.rs)**
   Restores the canary before the check fires — stack and `%rdx`. SSP bypassed, process exits cleanly.
 
 👉 [All tooling: github.com/GinoMaihuiri/Crackmes/tree/main/tooling](https://github.com/GinoMaihuiri/Crackmes/tree/main/tooling)
