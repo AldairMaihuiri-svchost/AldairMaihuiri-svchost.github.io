@@ -33,6 +33,11 @@ Currently analyzing LockBit ransomware internals and working toward OSED (EXP-30
   Serial deduced from the cmpl opcode via GDB, then bypassed entirely with a Rust
   ptrace patcher — CPU state manipulation via Zero Flag.
 
+- **[Crackme 03 — XOR Stack Strings: Ciphertext Embedded in the Instruction Stream](crackmes/cm3-xor)**
+  ([versión en español](crackmes/cm3-xor-es))
+  XOR-encrypted password stored as immediate values in the instruction stream,
+  decrypted to the stack at runtime before strcmp.
+
 All challenge binaries: [github.com/GinoMaihuiri/Crackmes](https://github.com/GinoMaihuiri/Crackmes)
 
 ## Detection engineering
