@@ -8,6 +8,10 @@ Written by **Gino Aldair Maihuiri Romero** | [ginomaihuiri.github.io](https://gi
 ## Writeups
 
 - [Crackme 01 — Hardcoded strcmp with GDB](https://ginomaihuiri.github.io/crackmes/cm1-strcmp)
+- [Crackme 02 — Numeric Serial: Deduction by Disassembly and Live Patching with Rust](https://ginomaihuiri.github.io/crackmes/cm2-numeric)
+- [Crackme 03 — XOR Stack Strings: Ciphertext Embedded in the Instruction Stream](https://ginomaihuiri.github.io/crackmes/cm3-xor)
+- [Crackme 04 — Pure Stack Strings: Ten movb Instructions That strings Cannot See](https://ginomaihuiri.github.io/crackmes/cm4-stackstring)
+- [Crackme 05 — Transform Before Compare: The First Crackme Without strcmp](https://ginomaihuiri.github.io/crackmes/cm5-transform)
 
 ## Challenge binaries
 
