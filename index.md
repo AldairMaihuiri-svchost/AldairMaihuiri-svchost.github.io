@@ -1,10 +1,10 @@
----
+
 ---
 title: "Aldair Maihuiri — Security Research"
 description: "Reverse engineering, malware analysis and binary exploitation by Gino Aldair Maihuiri Romero. LockBit analysis, crackme writeups, YARA rules, ptrace tooling in Rust, and three technical books in progress on malware analysis and code obfuscation."
 author: Aldair Maihuiri
 ---
----
+
 
 # Aldair Maihuiri — Security Research
 
