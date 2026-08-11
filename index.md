@@ -30,13 +30,8 @@ encoding to dynamic API resolution and anti-debug primitives. Grounded in
 real malware samples and purpose-built crackmes designed to isolate each
 technique.
 
-**Crackme Series — Level 1**
-Educational writeups for 21 original crackme challenges plus one capstone,
-documenting each technique from hardcoded comparisons to self-hashing
-anti-debug protections. Designed as a structured learning path for anyone
-entering binary reverse engineering.
-
----
+**[Reserved]**
+Third book in progress. Title and subject withheld pending publication.
 
 ## Malware analysis
 
