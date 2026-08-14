@@ -58,6 +58,20 @@ Third book in progress. Title and subject withheld pending publication.
   and the complete 11-block breakdown are reserved for the book
   *LockBit Ransomware — Complete Static and Dynamic Analysis*.
 
+
+---
+
+## Cryptography research
+
+- **[DES-M — Structural Modification of DES S-boxes: Reference Implementation, Differential Analysis, and Preliminary Study of Language Model Behavior](DES-M/des-m-en)**
+  ([versión en español](DES-M/des-m))
+  Ground-up DES implementation in Python, verified against FIPS 46-3 and pycryptodome.
+  Construction of DES-M, a custom S-box variant, with full differential analysis (DDT)
+  and Algebraic Normal Form of all eight original S-boxes. Includes an empirical
+  evaluation of four LLMs (ChatGPT, Gemini, DeepSeek, Qwen) under black-box, gray-box,
+  and white-box conditions — with a methodological finding on model confabulation
+  during cryptographic verification tasks.
+  
 ---
 
 ## Crackme writeups
