@@ -58,16 +58,16 @@ A training series distinct from the crackmes below: these are already-obfuscated
 Windows PE32+ binaries, solved through pure static analysis in Ghidra — no execution
 during analysis, only cross-references, the decompiler, and the raw memory view.
 Each level isolates one obfuscation technique.
-- **[Level 1 — String Encryption](Ghidra-Obfuscated/ghidra-obfuscated-level1-en)**
-  ([versión en español](Ghidra-Obfuscated/ghidra-obfuscated-level1))
+- **[Level 1 — String Encryption](Ghidra-obfuscated/ghidra-obfuscated-level1-en)**
+  ([versión en español](Ghidra-obfuscated/ghidra-obfuscated-level1))
   A PE32+ crackme that hides its password and result messages from a surface-level
   strings scan: the prompt is assembled byte by byte in memory instead of referenced
   as a literal, the real password is copied through a chain of heap buffers instead
   of compared directly, and both output messages are single-byte XOR–encrypted.
   Solved end to end by following cross-references from a known CRT import (`strcmp`)
   to the validation logic, then decoding the encrypted buffers in Python.
-- **[Level 2 — Control Flow Obfuscation](Ghidra-Obfuscated/ghidra-obfuscated-level2-en)**
-  ([versión en español](Ghidra-Obfuscated/ghidra-obfuscated-level2))
+- **[Level 2 — Control Flow Obfuscation](Ghidra-obfuscated/ghidra-obfuscated-level2-en)**
+  ([versión en español](Ghidra-obfuscated/ghidra-obfuscated-level2))
   A PE32+ crackme that reuses the same opaque predicate — a constant, always-true
   condition with the algebraic form of the Pythagorean theorem — as a guard for
   three separate dead branches, each one a copy of the real validation logic with
