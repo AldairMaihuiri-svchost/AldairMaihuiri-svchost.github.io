@@ -57,17 +57,17 @@ Third book in progress. Title and subject withheld pending publication.
 A training series distinct from the crackmes below: these are already-obfuscated
 Windows PE32+ binaries, solved through pure static analysis in Ghidra — no execution
 during analysis, only cross-references, the decompiler, and the raw memory view.
-Each level isolates one obfuscation technique.
-- **[Level 1 — String Encryption](Ghidra-obfuscated/ghidra-obfuscated-level1-en)**
-  ([versión en español](Ghidra-obfuscated/ghidra-obfuscated-level1))
+Each level isolates one obfuscation technique, building on the ones before it.
+- **[Level 1 — String Encryption](ghidra-obfuscated-level1-en)**
+  ([versión en español](ghidra-obfuscated-level1))
   A PE32+ crackme that hides its password and result messages from a surface-level
   strings scan: the prompt is assembled byte by byte in memory instead of referenced
   as a literal, the real password is copied through a chain of heap buffers instead
   of compared directly, and both output messages are single-byte XOR–encrypted.
   Solved end to end by following cross-references from a known CRT import (`strcmp`)
   to the validation logic, then decoding the encrypted buffers in Python.
-- **[Level 2 — Control Flow Obfuscation](Ghidra-obfuscated/ghidra-obfuscated-level2-en)**
-  ([versión en español](Ghidra-obfuscated/ghidra-obfuscated-level2))
+- **[Level 2 — Control Flow Obfuscation](ghidra-obfuscated-level2-en)**
+  ([versión en español](ghidra-obfuscated-level2))
   A PE32+ crackme that reuses the same opaque predicate — a constant, always-true
   condition with the algebraic form of the Pythagorean theorem — as a guard for
   three separate dead branches, each one a copy of the real validation logic with
@@ -75,6 +75,46 @@ Each level isolates one obfuscation technique.
   to a modular equation (a weighted sum of the input reduced to a single byte),
   which has no unique answer, so solving it means generating a valid input and
   confirming it against the real binary rather than extracting an embedded literal.
+- **[Level 3 — Indirection](ghidra-obfuscated-level3-en)**
+  ([versión en español](ghidra-obfuscated-level3))
+  A PE32+ crackme that splits password validation across two chained helper
+  functions joined by an AND — a length check and a content check kept
+  completely separate — and builds the reference password byte by byte in
+  memory at runtime, including a 32-bit little-endian integer, instead of
+  storing it as a literal string anywhere in the binary.
+- **[Level 4 — Virtual Tables and Hash Validation](ghidra-obfuscated-level4-en)**
+  ([versión en español](ghidra-obfuscated-level4))
+  A PE32+ crackme compiled in C++ that dispatches validation through a factory
+  table, builds objects with their own vtable at runtime, and validates the
+  password by comparing its 32-bit FNV-1a hash against a constant — with a
+  second object, reachable through the same table, whose only method always
+  returns false. Solved with an SMT solver (Z3) once the hash algorithm and
+  its constants were recognized.
+- **[Level 5 — The Final Level](ghidra-obfuscated-level5-en)**
+  ([versión en español](ghidra-obfuscated-level5))
+  A synthesis level combining techniques from the previous four — dynamic
+  password construction, an opaque predicate, vtable dispatch, a hand-rolled
+  comparison avoiding `strcmp` — with two new elements: runtime code
+  relocation to executable memory (with no real effect against static
+  analysis) and a debugger check that genuinely blocks the success path.
+- **[Level 6 — State Machine and Binary Payload Delivery](ghidra-obfuscated-level6-en)**
+  ([versión en español](ghidra-obfuscated-level6))
+  A PE32+ crackme that validates its password through a custom state machine
+  of bit rotations and hash-like constants, fed by a stack buffer overflow
+  that spreads the ten input bytes across separately named local variables.
+  Breaking the algorithm with Z3 was only half the problem: the solution key
+  contains non-printable bytes that neither a keyboard nor a naive shell pipe
+  can deliver intact to a Windows binary running under Wine.
+- **[Level 7 — Mixed Boolean-Arithmetic and Dynamic Shellcode](ghidra-obfuscated-level7-en)**
+  ([versión en español](ghidra-obfuscated-level7))
+  A PE32+ crackme that hides a standard FNV-1a hash behind mixed
+  boolean-arithmetic identities (OR/AND standing in for XOR, XOR plus carry
+  standing in for addition), and hides the comparison's target value inside a
+  shellcode fragment the binary itself assembles and decrypts into executable
+  memory before invoking it. Solved with a meet-in-the-middle search instead
+  of an SMT solver, after catching two self-made errors — a corrupted byte
+  reconstruction and a miscalculated hex constant — by verifying results
+  against the real binary rather than trusting the math alone.
 ---
 ## Crackme writeups
 | Crackme | Technique demonstrated |
