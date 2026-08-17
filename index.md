@@ -66,6 +66,15 @@ Each level isolates one obfuscation technique.
   of compared directly, and both output messages are single-byte XOR–encrypted.
   Solved end to end by following cross-references from a known CRT import (`strcmp`)
   to the validation logic, then decoding the encrypted buffers in Python.
+- **[Level 2 — Control Flow Obfuscation](Ghidra-Obfuscated/ghidra-obfuscated-level2-en)**
+  ([versión en español](Ghidra-Obfuscated/ghidra-obfuscated-level2))
+  A PE32+ crackme that reuses the same opaque predicate — a constant, always-true
+  condition with the algebraic form of the Pythagorean theorem — as a guard for
+  three separate dead branches, each one a copy of the real validation logic with
+  the result inverted. The password itself isn't a fixed string but the solution
+  to a modular equation (a weighted sum of the input reduced to a single byte),
+  which has no unique answer, so solving it means generating a valid input and
+  confirming it against the real binary rather than extracting an embedded literal.
 ---
 ## Crackme writeups
 | Crackme | Technique demonstrated |
