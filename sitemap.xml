@@ -8,6 +8,76 @@
     <loc>https://aldairmaihuiri-svchost.github.io/lockbit-string-deobfuscation</loc>
     <lastmod>2026-08-26</lastmod>
   </url>
+
+  <!-- DES-M -->
+  <url>
+    <loc>https://aldairmaihuiri-svchost.github.io/DES-M/des-m-en</loc>
+    <lastmod>2026-08-26</lastmod>
+  </url>
+  <url>
+    <loc>https://aldairmaihuiri-svchost.github.io/DES-M/des-m</loc>
+    <lastmod>2026-08-26</lastmod>
+  </url>
+
+  <!-- Ghidra: obfuscated binaries -->
+  <url>
+    <loc>https://aldairmaihuiri-svchost.github.io/Ghidra-obfuscated/ghidra-obfuscated-level1-en</loc>
+    <lastmod>2026-08-26</lastmod>
+  </url>
+  <url>
+    <loc>https://aldairmaihuiri-svchost.github.io/Ghidra-obfuscated/ghidra-obfuscated-level1</loc>
+    <lastmod>2026-08-26</lastmod>
+  </url>
+  <url>
+    <loc>https://aldairmaihuiri-svchost.github.io/Ghidra-obfuscated/ghidra-obfuscated-level2-en</loc>
+    <lastmod>2026-08-26</lastmod>
+  </url>
+  <url>
+    <loc>https://aldairmaihuiri-svchost.github.io/Ghidra-obfuscated/ghidra-obfuscated-level2</loc>
+    <lastmod>2026-08-26</lastmod>
+  </url>
+  <url>
+    <loc>https://aldairmaihuiri-svchost.github.io/Ghidra-obfuscated/ghidra-obfuscated-level3-en</loc>
+    <lastmod>2026-08-26</lastmod>
+  </url>
+  <url>
+    <loc>https://aldairmaihuiri-svchost.github.io/Ghidra-obfuscated/ghidra-obfuscated-level3</loc>
+    <lastmod>2026-08-26</lastmod>
+  </url>
+  <url>
+    <loc>https://aldairmaihuiri-svchost.github.io/Ghidra-obfuscated/ghidra-obfuscated-level4-en</loc>
+    <lastmod>2026-08-26</lastmod>
+  </url>
+  <url>
+    <loc>https://aldairmaihuiri-svchost.github.io/Ghidra-obfuscated/ghidra-obfuscated-level4</loc>
+    <lastmod>2026-08-26</lastmod>
+  </url>
+  <url>
+    <loc>https://aldairmaihuiri-svchost.github.io/Ghidra-obfuscated/ghidra-obfuscated-level5-en</loc>
+    <lastmod>2026-08-26</lastmod>
+  </url>
+  <url>
+    <loc>https://aldairmaihuiri-svchost.github.io/Ghidra-obfuscated/ghidra-obfuscated-level5</loc>
+    <lastmod>2026-08-26</lastmod>
+  </url>
+  <url>
+    <loc>https://aldairmaihuiri-svchost.github.io/Ghidra-obfuscated/ghidra-obfuscated-level6-en</loc>
+    <lastmod>2026-08-26</lastmod>
+  </url>
+  <url>
+    <loc>https://aldairmaihuiri-svchost.github.io/Ghidra-obfuscated/ghidra-obfuscated-level6</loc>
+    <lastmod>2026-08-26</lastmod>
+  </url>
+  <url>
+    <loc>https://aldairmaihuiri-svchost.github.io/Ghidra-obfuscated/ghidra-obfuscated-level7-en</loc>
+    <lastmod>2026-08-26</lastmod>
+  </url>
+  <url>
+    <loc>https://aldairmaihuiri-svchost.github.io/Ghidra-obfuscated/ghidra-obfuscated-level7</loc>
+    <lastmod>2026-08-26</lastmod>
+  </url>
+
+  <!-- Crackme writeups -->
   <url>
     <loc>https://aldairmaihuiri-svchost.github.io/crackmes/</loc>
     <lastmod>2026-08-26</lastmod>
@@ -22,6 +92,10 @@
   </url>
   <url>
     <loc>https://aldairmaihuiri-svchost.github.io/crackmes/cm2-numeric</loc>
+    <lastmod>2026-08-26</lastmod>
+  </url>
+  <url>
+    <loc>https://aldairmaihuiri-svchost.github.io/crackmes/cm2-numeric-es</loc>
     <lastmod>2026-08-26</lastmod>
   </url>
   <url>
