@@ -133,7 +133,7 @@ Each level isolates one obfuscation technique, building on the ones before it.
   ([versión en español](crackmes/cm4-stackstring-es))
 - **[Crackme 05 — Transform Before Compare: The First Crackme Without strcmp](crackmes/cm5-transform)**
   ([versión en español](crackmes/cm5-transform-es))
-All challenge binaries: [github.com/GinoMaihuiri/Crackmes](https://github.com/GinoMaihuiri/Crackmes)
+All challenge binaries: [github.com/GinoMaihuiri/Crackmes](https://github.com/AldairMaihuiri-svchost/Crackmes)
 ---
 ## Tooling
 Custom ptrace instrumentation, binary patchers, and analysis scripts built alongside
@@ -141,18 +141,18 @@ the crackme research. Each tool targets a specific low-level technique.
 - **[cm2 ptrace patcher — Zero Flag Hijacking](https://github.com/GinoMaihuiri/Crackmes/tree/main/Tooling/cm2_patcher)**
   Rust process that forces "Serial válido" with any input by manipulating EFLAGS
   directly via ptrace — CPU state manipulation, no binary modification.
-- **[cm5 Stack Canary Corruption via ptrace](https://github.com/GinoMaihuiri/Crackmes/blob/main/Tooling/cm5_corrupting_stack_canary/cm5_Stack%20Canary%20Corruption%20via%20ptrace.rs)**
+- **[cm5 Stack Canary Corruption via ptrace](https://github.com/AldairMaihuiri-svchost/Crackmes/blob/main/Tooling/cm5_corrupting_stack_canary/cm5_Stack%20Canary%20Corruption%20via%20ptrace.rs)**
   Corrupts the GCC stack canary after it is stored. Demonstrates SSP detection behavior.
-- **[cm5 Stack Canary Bypass via ptrace](https://github.com/GinoMaihuiri/Crackmes/blob/main/Tooling/cm5_corrupting_stack_canary/Stack%20Canary%20Bypass%20via%20ptrace.rs)**
+- **[cm5 Stack Canary Bypass via ptrace](https://github.com/AldairMaihuiri-svchost/Crackmes/blob/main/Tooling/cm5_corrupting_stack_canary/Stack%20Canary%20Bypass%20via%20ptrace.rs)**
   Restores the canary before the check fires — stack and %rdx. SSP bypassed,
   process exits cleanly.
-👉 [All tooling](https://github.com/GinoMaihuiri/Crackmes/tree/main/Tooling)
+👉 [All tooling](https://github.com/AldairMaihuiri-svchost/Crackmes/tree/main/Tooling)
 ---
 ## Detection engineering
 - YARA rules published on [YARAhub](https://yaraify.abuse.ch/user/51747/)
 ---
 ## Elsewhere
-[GitHub](https://github.com/GinoMaihuiri) ·
+[GitHub](https://github.com/AldairMaihuiri-svchost) ·
 [LinkedIn](https://www.linkedin.com/in/AldairMaihuiri) ·
 [X](https://x.com/AldairMaihuiri) ·
 [YARAify](https://yaraify.abuse.ch/user/51747/)
