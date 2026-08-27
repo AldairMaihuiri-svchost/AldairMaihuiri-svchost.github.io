@@ -19,11 +19,11 @@ the challenge — it spoils the answer.
 
 | Name | Level | Technique | Platform | Writeup |
 |---|---|---|---|---|
-| cm1_strcmp | 1 | Hardcoded strcmp | Linux x86_64 (ELF) | [Writeup](https://ginomaihuiri.github.io/crackmes/cm1-strcmp) |
-| cm2_numeric | 1 | Numeric serial + live patching via ptrace | Linux x86_64 (ELF) | [Writeup](https://ginomaihuiri.github.io/crackmes/cm2-numeric) |
-| cm3_xor | 1 | XOR encrypted immediates in instruction stream | Linux x86_64 (ELF) | [Writeup](https://ginomaihuiri.github.io/crackmes/cm3-xor) |
-| cm4_stackstring | 1 | Pure stack strings — movb per character | Linux x86_64 (ELF) | [Writeup](https://ginomaihuiri.github.io/crackmes/cm4-stackstring) |
-| cm5_transform | 1 | Custom transformation loop + SSP bypass | Linux x86_64 (ELF) | [Writeup](https://ginomaihuiri.github.io/crackmes/cm5-transform) |
+| cm1_strcmp | 1 | Hardcoded strcmp | Linux x86_64 (ELF) | [Writeup](https://aldairmaihuiri-svchost.github.io/crackmes/cm1-strcmp) |
+| cm2_numeric | 1 | Numeric serial + live patching via ptrace | Linux x86_64 (ELF) | [Writeup](https://aldairmaihuiri-svchost.github.io/crackmes/cm2-numeric) |
+| cm3_xor | 1 | XOR encrypted immediates in instruction stream | Linux x86_64 (ELF) | [Writeup](https://aldairmaihuiri-svchost.github.io/crackmes/cm3-xor) |
+| cm4_stackstring | 1 | Pure stack strings — movb per character | Linux x86_64 (ELF) | [Writeup](https://aldairmaihuiri-svchost.github.io/crackmes/cm4-stackstring) |
+| cm5_transform | 1 | Custom transformation loop + SSP bypass | Linux x86_64 (ELF) | [Writeup](https://aldairmaihuiri-svchost.github.io/crackmes/cm5-transform) |
 
 ---
 
@@ -56,14 +56,14 @@ GDB · Ghidra · objdump · strings · Rust (for tooling)
 ## Writeups
 
 Detailed solutions with full assembly analysis in English and Spanish:
-[ginomaihuiri.github.io/crackmes](https://ginomaihuiri.github.io/crackmes/)
+[ginomaihuiri.github.io/crackmes](https://aldairmaihuiri-svchost.github.io/crackmes/)
 
 ---
 
 ## Author
 
 **Gino Aldair Maihuiri Romero** — security researcher
-[Blog](https://ginomaihuiri.github.io) · [GitHub](https://github.com/GinoMaihuiri) · [LinkedIn](https://www.linkedin.com/in/AldairMaihuiri) · [X](https://x.com/AldairMaihuiri)
+[Blog](https://aldairmaihuiri-svchost.github.io) · [GitHub](https://github.com/AldairMaihuiri-svchost) · [LinkedIn](https://www.linkedin.com/in/AldairMaihuiri) · [X](https://x.com/AldairMaihuiri)
 
 ---
 
