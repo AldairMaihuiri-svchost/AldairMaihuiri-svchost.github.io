@@ -10,7 +10,7 @@ author: Aldair Maihuiri
 
 ([English version](ghidra-obfuscated-level1-en))
 
-Esta es la primera entrega de una serie de entrenamiento distinta a mis crackmes anteriores. Ahí trabajaba con binarios ELF propios, sin ofuscación deliberada, pensados para practicar primitivas concretas de reversing: comparación de cadenas, parcheo con ptrace, canarios de pila. Aquí el objetivo cambia: son binarios PE32+ de Windows, ya ofuscados, y la pregunta ya no es "cómo funciona esta primitiva" sino "cómo se ve una técnica de ofuscación real cuando la abro en Ghidra, y cómo la desmonto usando solo el decompilador y el listado de memoria, sin depender de ejecutar el binario ni una sola vez".
+Esta es la primera entrega de una serie de entrenamiento distinta a mis crackmes anteriores. Ahí trabajaba con binarios ELF propios, sin ofuscación, pensados para practicar primitivas concretas de reversing: comparación de cadenas, parcheo con ptrace, canarios de pila. Aquí el objetivo cambia: son binarios PE32+ de Windows, ya ofuscados, y la pregunta ya no es "cómo funciona esta primitiva" sino "cómo se ve una técnica de ofuscación real cuando la abro en Ghidra, y cómo la desmonto usando solo el decompilador y el listado de memoria, sin depender de ejecutar el binario ni una sola vez".
 
 Esa restricción no es arbitraria: yo trabajo en Linux, y estos crackmes son binarios nativos de Windows. Podría ejecutarlos bajo Wine, pero para este entrenamiento decidí no hacerlo durante el análisis. El objetivo es que la resolución salga enteramente del análisis estático en Ghidra. Solo después, en un entorno Windows aparte, verifico que la contraseña encontrada sea correcta. Si estás leyendo este documento es porque esa verificación ya se hizo.
 
