@@ -246,7 +246,7 @@ Breakpoint 1, main () at crackme.c:20
 20      if ((unsigned char)(input[i] + 5) != expected[i]) {
 ```
 
-El cast `(unsigned char)` es una decisión de diseño deliberada.
+El cast `(unsigned char)` es una decisión de diseño.
 
 Cuando C evalúa `input[i] + 5`, el compilador **promueve** el `char` a `int` antes
 de la suma. El resultado es un entero de 32 bits. Para caracteres ASCII normales esto
