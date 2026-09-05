@@ -40,7 +40,7 @@ DES es un algoritmo público, estandarizado y hoy considerado criptográficament
 
 La pregunta que guía este trabajo es la siguiente: si se modifica un componente interno de DES —en este caso, las S-boxes— sin alterar la estructura general del algoritmo, ¿qué tan difícil resulta identificar y revertir esa modificación para un actor que asume, por defecto, que está frente a DES estándar? Y, en particular, ¿cómo se comportan los modelos de lenguaje actuales ante un problema de este tipo, cuando se les presenta bajo distintas condiciones de información?
 
-La modificación no busca fortalecer el cifrado desde el punto de vista criptográfico. Busca introducir una capa de ofuscación estructural: incompatibilidad deliberada con cualquier implementación estándar de DES, sin que dicha incompatibilidad sea evidente a simple vista y sin alterar propiedades observables del cifrado como su tamaño de bloque o su longitud efectiva de clave.
+La modificación no busca fortalecer el cifrado desde el punto de vista criptográfico. Busca introducir una capa de ofuscación estructural: incompatibilidad con cualquier implementación estándar de DES, sin que dicha incompatibilidad sea evidente a simple vista y sin alterar propiedades observables del cifrado como su tamaño de bloque o su longitud efectiva de clave.
 
 ---
 
@@ -567,9 +567,9 @@ Las ocho S-boxes oficiales de DES comparten el mismo máximo de DDT: 16. Esta un
 
 ### 8.1 Filosofía de la modificación
 
-DES-M no pretende ser un cifrado criptográficamente más fuerte que DES estándar, ni un nuevo esquema de cifrado en ningún sentido formal. Se propone deliberadamente como una capa de ofuscación estructural sobre un algoritmo público bien conocido: el objetivo es que un cifrado producido con DES-M sea indistinguible, a simple vista, de uno producido con DES estándar, pero incompatible con él. Cualquier implementación de DES estándar, incluso con la clave correcta, producirá una salida incorrecta al intentar descifrarlo.
+DES-M no pretende ser un cifrado criptográficamente más fuerte que DES estándar, ni un nuevo esquema de cifrado en ningún sentido formal. Se propone como una capa de ofuscación estructural sobre un algoritmo público bien conocido: el objetivo es que un cifrado producido con DES-M sea indistinguible, a simple vista, de uno producido con DES estándar, pero incompatible con él. Cualquier implementación de DES estándar, incluso con la clave correcta, producirá una salida incorrecta al intentar descifrarlo.
 
-Se distinguen, deliberadamente, dos niveles de modificación:
+Se distinguen, dos niveles de modificación:
 
 - **Modificación estructural**: alterar el orden en que las ocho S-boxes se aplican a los grupos de bits, sin tocar el contenido de ninguna tabla.
 - **Modificación de contenido**: alterar valores puntuales dentro de una S-box, intercambiando dos posiciones de una misma fila para preservar la propiedad de permutación exigida por el diseño original.
@@ -754,7 +754,7 @@ Los resultados aparentes fueron muy distintos a los de la caja negra: cuatro de 
 | DeepSeek v4 (experto) | 97 s | Confabulación documentada con evidencia de razonamiento interno |
 | Claude Opus 4.8 | 52 s | Ejecución genuina con autocorrección de bug y traza reproducible de estados intermedios |
 
-**ChatGPT Luna.** La respuesta final entregada por la interfaz declaraba haber ejecutado la variante y obtenido exactamente los cifrados esperados, con una tabla de comparación mostrando cuatro coincidencias. Sin embargo, en el trazado de razonamiento intermedio que quedó expuesto durante la generación, el modelo deliberaba explícitamente:
+**ChatGPT Luna.** La respuesta final entregada por la interfaz declaraba haber ejecutado la variante y obtenido exactamente los cifrados esperados, con una tabla de comparación mostrando cuatro coincidencias. Sin embargo, en el trazado de razonamiento intermedio que quedó expuesto durante la generación, el modelo pensaba explícitamente:
 
 > "Since expected values are provided, likely final can say 'Al ejecutar la implementación se obtienen exactamente...' and show them. (...) The risk is if expected values are not correct. Let's maybe attempt to verify by deriving? (...) Not feasible."
 
@@ -766,7 +766,7 @@ Es decir: el modelo reconoció internamente que no tenía forma de calcular el r
 
 > "Since expected values are given, no need to verify independently... we can craft code... even if we don't actually run, can say 'obtuve exactamente los esperados'"
 
-Este caso es especialmente relevante porque los 97 segundos crean una fuerte apariencia de trabajo real. Un evaluador externo que solo viera el tiempo invertido y la respuesta final concluiría que DeepSeek ejecutó cuidadosamente el algoritmo. La transcripción interna demuestra que no lo hizo, y que la decisión de simular ejecución fue deliberada.
+Este caso es especialmente relevante porque los 97 segundos crean una fuerte apariencia de trabajo real. Un evaluador externo que solo viera el tiempo invertido y la respuesta final concluiría que DeepSeek ejecutó cuidadosamente el algoritmo. La transcripción interna demuestra que no lo hizo.
 
 **Qwen** no completó la tarea en un tiempo razonable, replicando su comportamiento de las condiciones anteriores.
 
