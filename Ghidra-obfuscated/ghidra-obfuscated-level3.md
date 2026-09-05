@@ -228,7 +228,7 @@ Este nivel no repite ni el cifrado del nivel 1 ni las ramas muertas del nivel 2 
 - **Contraseña construida en memoria, no almacenada como literal.** `DAT_14000e0a0` no existe como string en el binario compilado — se ensambla byte a byte, incluyendo un entero de 32 bits interpretado en little-endian, justo antes de la comparación. Encontrar la XREF marcada con `(W)` fue la pista que llevó directo a la función constructora.
 - **Un desvío ya reconocible.** La función de búsqueda de secciones del PE que apareció como callejón sin salida en el nivel 2 volvió a aparecer aquí, en la misma posición del flujo de análisis. Vale la pena aprender a reconocerla rápido en vez de volver a investigarla desde cero cada vez.
 
-La lección central de este nivel es que seguir una sola función hasta el final no basta cuando la lógica está deliberadamente repartida entre varias. Hay que reconstruir la cadena completa de llamadas —quién llama a quién, con qué argumentos, y bajo qué condición— antes de poder afirmar que se entendió la validación completa.
+La lección central de este nivel es que seguir una sola función hasta el final no basta cuando la lógica está repartida entre varias. Hay que reconstruir la cadena completa de llamadas —quién llama a quién, con qué argumentos, y bajo qué condición— antes de poder afirmar que se entendió la validación completa.
 
 ---
 
