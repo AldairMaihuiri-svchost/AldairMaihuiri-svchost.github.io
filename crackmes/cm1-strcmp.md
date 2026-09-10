@@ -100,7 +100,7 @@ int strcmp(const char *s1, const char *s2);
 
 | Return value | Meaning | Assembly conditional |
 |---|---|---|
-| 0 | Strings are **equal** ✅ | `test eax, eax` → `je` (jump if zero) |
+| 0 | Strings are **equal**  | `test eax, eax` → `je` (jump if zero) |
 | < 0 | s1 < s2 | `js`/`jl` — rare in practice |
 | > 0 | s1 > s2 | `jg` — rare; compilers use `je`/`jne` |
 
