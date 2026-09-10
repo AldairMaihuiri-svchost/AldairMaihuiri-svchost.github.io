@@ -113,7 +113,7 @@ int strcmp(const char *cadena1, const char *cadena2);
 
 | Valor devuelto | Significado | En assembly (condicional) |
 |---|---|---|
-| 0 | ¡Son **IGUALES**! ✅ | `test eax, eax` → `je` (salta si cero) |
+| 0 | ¡Son **IGUALES**!  | `test eax, eax` → `je` (salta si cero) |
 | < 0 (negativo) | cadena1 < cadena2 | `js`/`jl` — raro verlo en la práctica |
 | > 0 (positivo) | cadena1 > cadena2 | `jg` — raro; los compiladores usan `je`/`jne` |
 
