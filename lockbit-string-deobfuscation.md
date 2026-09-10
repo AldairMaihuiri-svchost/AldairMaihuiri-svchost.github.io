@@ -22,7 +22,7 @@ You may share this post with attribution. Reproduction of substantial portions w
 
 ## Overview
 
-One of the first anti-analysis techniques LockBit employs is the deliberate absence of visible API imports.
+One of the first anti-analysis techniques LockBit employs is the absence of visible API imports.
 A standard Windows executable lists the external functions it needs in its Import Address Table (IAT),
 making it trivial for an analyst — or an antivirus — to see which DLLs and functions the binary uses.
 LockBit avoids this entirely: its DLL names are stored encrypted on the stack and resolved dynamically
