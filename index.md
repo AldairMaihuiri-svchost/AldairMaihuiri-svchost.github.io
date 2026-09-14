@@ -30,6 +30,19 @@ real malware samples and purpose-built crackmes designed to isolate each techniq
 Second book in progress. Title and subject withheld pending publication.
 ---
 ## Malware analysis
+- **[LockBit Ransomware — Static Reverse Engineering Writeup](analisis-ransomware-lockbit-github.md)**
+
+This project originally began as a book.
+Over time, however, my other publications, academic work, and ongoing research began to demand more and more of my time. Rather than keep this work unpublished while waiting for the right moment to finish an entire book, I decided to release it as it honestly stands today.
+So, this is where I say goodbye to LockBit as a book, and say hello to LockBit as a writeup — one that I am confident I will eventually submit to VX-Underground once it is completely ready.
+For now, this remains one of the most hard pieces of work I have ever published, and probably the project to which I have dedicated the most time.
+The technical research, reverse engineering, analysis, reasoning, scripts, and writing were done 100% by me. LLMs were used only to help correct spelling and orthographic mistakes, never to perform the technical analysis itself.
+I sincerely hope you enjoy reading it as much as I enjoyed researching and writing it.
+
+Greetings,
+Sv-chost
+
+Read the full LockBit Ransomware writeup
 - **[LockBit String Deobfuscation — Affine Cipher DLL Loading](lockbit-string-deobfuscation)**
   Public teaser: how LockBit encrypts DLL names on the stack to evade IAT
   detection, the affine cipher reversed step by step, and a Python script
