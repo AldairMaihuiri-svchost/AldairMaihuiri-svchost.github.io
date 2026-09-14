@@ -27,14 +27,14 @@ A technical study of code obfuscation techniques — from stack strings and XOR
 encoding to dynamic API resolution and anti-debug primitives. Grounded in
 real malware samples and purpose-built crackmes designed to isolate each technique.
 **[Reserved]**
-Third book in progress. Title and subject withheld pending publication.
+Second book in progress. Title and subject withheld pending publication.
 ---
 ## Malware analysis
 - **[LockBit String Deobfuscation — Affine Cipher DLL Loading](lockbit-string-deobfuscation)**
   Public teaser: how LockBit encrypts DLL names on the stack to evade IAT
   detection, the affine cipher reversed step by step, and a Python script
   replicating the decryption. The decryption scripts, full function analysis,
-  and the complete 11-block breakdown are reserved for the book
+  and the complete 11-block breakdown are reserved for the write
   *LockBit Ransomware — Complete Static and Dynamic Analysis*.
 ---
 ## Cryptography research
