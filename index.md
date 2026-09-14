@@ -21,13 +21,7 @@ Here is what that looks like in practice:
 Systems engineering student · Lima, Peru
 ---
 ## Books in progress
-Technical books written alongside active research. Reserved — not yet published.
-**LockBit Ransomware — Complete Static and Dynamic Analysis**
-Full dissection of a LockBit sample: string obfuscation via affine cipher,
-dynamic API resolution, unreachable code blocks introduced by PGO, anomalous
-constructs in the decryption routine, and 54 inaccessible blocks identified
-across the binary. The decryption scripts, full function analysis, and complete
-11-block breakdown are reserved for this book.
+
 **The Art of Obfuscation**
 A technical study of code obfuscation techniques — from stack strings and XOR
 encoding to dynamic API resolution and anti-debug primitives. Grounded in
