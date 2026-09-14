@@ -30,7 +30,7 @@ real malware samples and purpose-built crackmes designed to isolate each techniq
 Second book in progress. Title and subject withheld pending publication.
 ---
 ## Malware analysis
-- **[LockBit Ransomware — Static Reverse Engineering Writeup](analisis-ransomware-lockbit-github.md)**
+- **[LockBit Ransomware — Static Reverse Engineering Writeup](analisis-ransomware-lockbit-github)**
 
 This project originally began as a book.
 Over time, however, my other publications, academic work, and ongoing research began to demand more and more of my time. Rather than keep this work unpublished while waiting for the right moment to finish an entire book, I decided to release it as it honestly stands today.
