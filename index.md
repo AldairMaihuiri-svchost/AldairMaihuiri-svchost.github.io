@@ -22,12 +22,12 @@ Systems engineering student · Lima, Peru
 ---
 ## Books in progress
 
-**The Art of Obfuscation**
+- **The Art of Obfuscation**
   A technical study of code obfuscation techniques — from stack strings and XOR
   encoding to dynamic API resolution and anti-debug primitives. Grounded in
   real malware samples and purpose-built crackmes designed to isolate each technique.
   
-**[Reserved]**
+- **[Reserved]**
   Second book in progress. Title and subject withheld pending publication.
 ---
 ## Malware analysis
