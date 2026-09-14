@@ -10,7 +10,7 @@ and exploit development — at the assembly and debugger level,
 on Linux ELF and Windows PE binaries.
 Here is what that looks like in practice:
 - Reversed LockBit's string obfuscation mechanism (affine cipher, stack strings,
-  dynamic API resolution) — documented in a public writeup and a book in progress
+  dynamic API resolution) — documented in a public writeup
 - Wrote YARA detection rules for LockBit and SolarisLoader, published on YARAhub
 - Built 5 original crackmes targeting specific obfuscation techniques, solved and
   documented each one with full assembly analysis in English and Spanish
