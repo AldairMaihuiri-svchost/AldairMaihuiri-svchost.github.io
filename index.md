@@ -34,7 +34,7 @@ Systems engineering student · Lima, Peru
 - **[LockBit Ransomware — Static Reverse Engineering Writeup](/lockbit-ransomware-analysis/)**
 
   This project originally began as a book.
-  However, over time, the book *The Art of Obfuscation*, my other publications, my academic work, and my ongoing researchs     began to demand more and more of my time. Rather than keeping this work unpublished while waiting for the right moment to    finish a full book, I decided to release it in its current form.
+  However, the book *The Art of Obfuscation*, my other publications, my academic work, and my ongoing researchs     began to demand more and more of my time. Rather than keeping this work unpublished while waiting for the right moment to    finish a full book, I decided to release it in its current form.
   So, after all this time, I am saying goodbye to *LockBit* as a book and welcoming *LockBit* as a technical report—a          document that, I am certain, I will eventually submit to VX-Underground once it is fully complete.
   For now, it remains one of the most arduous projects I have ever published and, likely, the one to which I have devoted      the most time.
   The technical research, reverse engineering, analysis, reasoning, scripting, and writing were carried out entirely by me.    Large Language Models (LLMs) were used solely to correct spelling and grammatical errors.
