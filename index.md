@@ -33,7 +33,7 @@ Second book in progress. Title and subject withheld pending publication.
 - **[LockBit Ransomware — Static Reverse Engineering Writeup](/lockbit-ransomware-analysis/)**
 
   This project originally began as a book.
-  Over time, however, my other publications, academic work, and ongoing research began to demand more and more of my time.     Rather than keep this work unpublished while waiting for the right moment to finish an entire book, I decided to release     it as it honestly stands today.
+  Over time, however, my other publications, academic work, and ongoing researchs began to demand more and more of my time.     Rather than keep this work unpublished while waiting for the right moment to finish an entire book, I decided to release     it as it honestly stands today.
   So, this is where I say goodbye to LockBit as a book, and say hello to LockBit as a writeup — one that I am confident I      will eventually submit to VX-Underground once it is completely ready.
   For now, this remains one of the most hard pieces of work I have ever published, and probably the project to which I have    dedicated the most time.
   The technical research, reverse engineering, analysis, reasoning, scripts, and writing were done 100% by me. LLMs were       used only to help correct spelling and orthographic mistakes, never to perform the technical analysis itself.
