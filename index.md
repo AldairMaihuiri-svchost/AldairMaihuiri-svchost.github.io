@@ -42,7 +42,6 @@ Second book in progress. Title and subject withheld pending publication.
   Greetings,
   Sv-chost
 
-Read the full LockBit Ransomware writeup
 - **[LockBit String Deobfuscation — Affine Cipher DLL Loading](lockbit-string-deobfuscation)**
   Public teaser: how LockBit encrypts DLL names on the stack to evade IAT
   detection, the affine cipher reversed step by step, and a Python script
