@@ -33,11 +33,11 @@ Second book in progress. Title and subject withheld pending publication.
 - **[LockBit Ransomware — Static Reverse Engineering Writeup](/lockbit-ransomware-analysis/)**
 
   This project originally began as a book.
-  Over time, however, my other publications, academic work, and ongoing research began to demand more and more of my time.     Rather than keep this work unpublished while waiting for the right moment to finish an entire book, I decided to release     it as it honestly stands today.
-  So, this is where I say goodbye to LockBit as a book, and say hello to LockBit as a writeup — one that I am confident I      will eventually submit to VX-Underground once it is completely ready.
-  For now, this remains one of the most hard pieces of work I have ever published, and probably the project to which I have    dedicated the most time.
-  The technical research, reverse engineering, analysis, reasoning, scripts, and writing were done 100% by me. LLMs were       used only to help correct spelling and orthographic mistakes, never to perform the technical analysis itself.
-  I sincerely hope you enjoy reading it as much as I enjoyed researching and writing it.
+  However, over time, the book *The Art of Obfuscation*, my other publications, my academic work, and my ongoing research      began to demand more and more of my time. Rather than keeping this work unpublished while waiting for the right moment to    finish a full book, I decided to release it in its current form.
+  And so, after all this time, I am saying goodbye to *LockBit* as a book and welcoming *LockBit* as a technical report—a      document that, I am certain, I will eventually submit to VX-Underground once it is fully complete.
+  For now, it remains one of the most arduous projects I have ever published and, likely, the one to which I have devoted      the most time.
+  The technical research, reverse engineering, analysis, reasoning, scripting, and writing were carried out entirely by me.    Large Language Models (LLMs) were used solely to correct spelling and grammatical errors.
+  I hope you enjoy reading it as much as I enjoyed writing it.
 
   Greetings,
   Sv-chost
