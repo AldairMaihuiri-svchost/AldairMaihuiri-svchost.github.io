@@ -5,7 +5,7 @@ author: Aldair Maihuiri
 date: 2026-08-02
 ---
 
-[Read in English](https://ginomaihuiri.github.io/crackmes/cm1-strcmp)
+[Read in English](https://aldairmaihuiri-svchost.github.io/crackmes/cm1-strcmp)
 
 # Crackme 01 — strcmp hardcodeado: encontrando la contraseña con GDB
 
@@ -484,9 +484,9 @@ difíciles — desde comparaciones hardcodeadas hasta chequeos ofuscados, funcio
 propias y técnicas anti-debug.*
 
 *Los binarios de los crackmes están disponibles en
-[github.com/GinoMaihuiri/Crackmes](https://github.com/GinoMaihuiri/Crackmes)*
+[github.com/GinoMaihuiri/Crackmes](https://github.com/AldairMaihuiri-svchost/Crackmes)*
 
-*Todos los writeups: [ginomaihuiri.github.io](https://ginomaihuiri.github.io)*
+*Todos los writeups: [ginomaihuiri.github.io](https://aldairmaihuiri-svchost.github.io)*
 
 ---
 
