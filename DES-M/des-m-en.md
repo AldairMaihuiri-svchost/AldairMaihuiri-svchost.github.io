@@ -5,7 +5,7 @@ author: Aldair Maihuiri
 date: 2026-08-13
 ---
 
-🇪🇸 [Leer en español](https://ginomaihuiri.github.io/des-mod-es)
+🇪🇸 [Leer en español](https://aldairmaihuiri-svchost.github.io/des-mod-es)
 
 # DES-M — Structural Modification of DES S-boxes: Reference Implementation, Differential Analysis, and Preliminary Study of Language Model Behavior
 
@@ -972,4 +972,4 @@ y4 = 1 + x5 + x5x6 + x4 + x4x6 + x4x5 + x3 + x3x5x6 + x3x4x6 + x3x4x5x6 + x2 + x
 © 2026 Aldair Maihuiri. All rights reserved.
 Sharing with attribution is welcome. Unauthorized reproduction is prohibited.
 
-*Published at [ginomaihuiri.github.io](https://ginomaihuiri.github.io) — /DES MOD/*
+*Published at [aldairmaihuiri-svchost.github.io](https://aldairmaihuiri-svchost.github.io) — /DES MOD/*
