@@ -156,7 +156,7 @@ All challenge binaries: [github.com/AldairMaihuiri-svchost/Crackmes](https://git
 ## Tooling
 Custom ptrace instrumentation, binary patchers, and analysis scripts built alongside
 the crackme research. Each tool targets a specific low-level technique.
-- **[cm2 ptrace patcher — Zero Flag Hijacking](https://github.com/GinoMaihuiri/Crackmes/tree/main/Tooling/cm2_patcher)**
+- **[cm2 ptrace patcher — Zero Flag Hijacking](https://github.com/AldairMaihuiri-svchost/Crackmes/tree/main/Tooling/cm2_patcher)**
   Rust process that forces "Serial válido" with any input by manipulating EFLAGS
   directly via ptrace — CPU state manipulation, no binary modification.
 - **[cm5 Stack Canary Corruption via ptrace](https://github.com/AldairMaihuiri-svchost/Crackmes/blob/main/Tooling/cm5_corrupting_stack_canary/cm5_Stack%20Canary%20Corruption%20via%20ptrace.rs)**
