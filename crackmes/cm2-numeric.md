@@ -5,7 +5,7 @@ author: Aldair Maihuiri
 date: 2026-08-07
 ---
 
-[Leer en español](https://ginomaihuiri.github.io/crackmes/cm2-numeric-es)
+[Leer en español](https://aldairmaihuiri-svchost.github.io/crackmes/cm2-numeric-es)
 
 # Crackme 02 — Numeric Serial: Deduction by Disassembly and Live Patching with Rust
 
@@ -534,9 +534,9 @@ hardcoded comparisons to obfuscated checks, custom hash functions, and anti-debu
 techniques.*
 
 *Challenge binaries available at
-[github.com/GinoMaihuiri/Crackmes](https://github.com/GinoMaihuiri/Crackmes)*
+[github.com/AldairMaihuiri-svchost/Crackmes](https://github.com/AldairMaihuiri-svchost/Crackmes)*
 
-*All writeups: [ginomaihuiri.github.io](https://ginomaihuiri.github.io)*
+*All writeups: [aldairmaihuiri-svchost.github.io](https://aldairmaihuiri-svchost.github.io)*
 
 ---
 
