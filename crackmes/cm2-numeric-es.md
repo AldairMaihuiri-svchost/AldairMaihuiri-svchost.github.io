@@ -5,7 +5,7 @@ author: Aldair Maihuiri
 date: 2026-08-07
 ---
 
-🇬🇧 [Read in English](https://ginomaihuiri.github.io/crackmes/cm2-numeric)
+🇬🇧 [Read in English](https://aldairmaihuiri.github.io/crackmes/cm2-numeric)
 
 # Crackme 02 — Serial numérico: deducción por desensamblado y live patching con Rust
 
@@ -484,9 +484,9 @@ El estado interno del procesador fue intervenido en el instante exacto de la dec
 
 *Parte de una serie de writeups de crackmes cubriendo binarios progresivamente más difíciles — desde comparaciones hardcodeadas hasta chequeos ofuscados, funciones hash propias y técnicas anti-debug.*
 
-*Los binarios están disponibles en [github.com/GinoMaihuiri/Crackmes](https://github.com/GinoMaihuiri/Crackmes)*
+*Los binarios están disponibles en [github.com/AldairMaihuiri-svchost/Crackmes](https://github.com/AldairMaihuiri-svchost/Crackmes)*
 
-*Todos los writeups: [ginomaihuiri.github.io](https://ginomaihuiri.github.io)*
+*Todos los writeups: [aldairmaihuiri-svchost.github.io](https://aldairmaihuiri-svchost.github.io)*
 
 ---
 
