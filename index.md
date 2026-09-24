@@ -55,7 +55,8 @@ A series focused on reproducing real-world ransomware techniques and tactics in 
 controlled environment, aimed at strengthening detection, response, and mitigation
 strategies from the defensive side.
 
-- **[Module 1: Introduction](Ransomware/Ransomware-Modulo1)**
+- - **[Module 1: Introduction](Ransomware/Ransomware-Modulo1-en)**
+  ([versión en español](Ransomware/Ransomware-Modulo1))
   How ransomware is built — fundamentals and basic architecture before moving into
   simulation and mitigation.
 
