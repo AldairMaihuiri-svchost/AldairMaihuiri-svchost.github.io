@@ -453,7 +453,7 @@ the comparison.
 *Part of an ongoing crackme writeup series covering progressively harder binaries —
 from hardcoded comparisons to obfuscated checks, custom hash functions, and anti-debug techniques.*
 
-*All writeups: [ginomaihuiri.github.io](https://ginomaihuiri.github.io)*
+*All writeups: [ginomaihuiri.github.io](https://aldairmaihuiri-svchost.github.io)*
 
 ---
 
