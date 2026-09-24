@@ -50,6 +50,16 @@ Systems engineering student · Lima, Peru
   and the complete 11-block breakdown are reserved for the write
   *LockBit Ransomware — Complete Static and Dynamic Analysis*.
 ---
+## Red Teaming — Ransomware Simulation and Mitigation
+A series focused on reproducing real-world ransomware techniques and tactics in a
+controlled environment, aimed at strengthening detection, response, and mitigation
+strategies from the defensive side.
+
+- **[Module 1: Introduction](Ransomware/Ransomware-Modulo1)**
+  How ransomware is built — fundamentals and basic architecture before moving into
+  simulation and mitigation.
+
+---
 ## Cryptography research
 - **[DES-M — Structural Modification of DES S-boxes: Reference Implementation, Differential Analysis, and Preliminary Study of Language Model Behavior](DES-M/des-m-en)**
   ([versión en español](DES-M/des-m))
