@@ -1,3 +1,8 @@
+---
+title: "Ransomware Red Teaming — Módulo 1: <título del módulo>"
+description: "<una o dos frases sobre qué cubre el módulo>"
+author: Aldair Maihuiri
+---
 # Módulo 01 — Introducción al Curso de Ransomware (Red team)
 
 
