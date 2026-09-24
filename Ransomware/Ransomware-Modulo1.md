@@ -1,6 +1,6 @@
 ---
-title: "Ransomware Red Teaming — Módulo 1: <Ransomware-Modulo1.md>"
-description: "<¿Cómo crear un ransomware ?>"
+title: "Ransomware Red Teaming — Módulo 1: Introducción"
+description: "¿Cómo crear un ransomware ?"
 author: Aldair Maihuiri
 ---
 # Módulo 01 — Introducción al Curso de Ransomware (Red team)
