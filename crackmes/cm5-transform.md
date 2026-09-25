@@ -5,7 +5,7 @@ author: Aldair Maihuiri
 date: 2026-08-07
 ---
 
-🇪🇸 [Leer en español](https://ginomaihuiri.github.io/crackmes/cm5-transform-es)
+🇪🇸 [Leer en español](https://aldairmaihuiri-svchost.github.io/crackmes/cm5-transform-es)
 
 # Crackme 05 — Transform Before Compare: The First Crackme Without strcmp
 
@@ -717,9 +717,9 @@ malware easier to decompose during analysis.
 
 *Part of a crackme writeup series covering progressively harder binaries.*
 
-*Challenge binaries: [github.com/GinoMaihuiri/Crackmes](https://github.com/GinoMaihuiri/Crackmes)*
-*Tooling: [github.com/GinoMaihuiri/Crackmes/tree/main/Tooling](https://github.com/GinoMaihuiri/Crackmes/tree/main/Tooling)*
-*All writeups: [ginomaihuiri.github.io](https://ginomaihuiri.github.io)*
+*Challenge binaries: [github.com/AldairMaihuiri-svchost/Crackmes](https://github.com/AldairMaihuiri-svchost/Crackmes)*
+*Tooling: [github.com/AldairMaihuiri-svchost/Crackmes/tree/main/Tooling](https://github.com/AldairMaihuiri-svchost/Crackmes/tree/main/Tooling)*
+*All writeups: [aldairmaihuiri-svchost.github.io](https://aldairmaihuiri-svchost.github.io)*
 
 ---
 
