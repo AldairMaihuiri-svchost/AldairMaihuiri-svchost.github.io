@@ -308,4 +308,16 @@ You now understand:
 
 - C vs Rust for implementation
 
+Xtra:
+- Why is hybrid encryption (AES + RSA/ECDH) superior to using solely RSA or solely AES in ransomware? What specific problem does each algorithm solve, and what would happen if you were to remove one of them?
+
+- In the locker flow, why is the file_key encrypted with the master_pubkey first and not the other way around? What security implications would reversing this order have?
+
+- Identify differences between WannaCry (2017), LockBit 3.0 (2022), and Jigsaw (2016) in terms of:
+
+Propagation vector
+Cryptographic algorithms used
+Business model (RaaS vs. non-RaaS)
+Encryption speed
+
 **Next**: Module 02 — Cryptographic algorithms (AES, ChaCha20, RSA, ECDH)
