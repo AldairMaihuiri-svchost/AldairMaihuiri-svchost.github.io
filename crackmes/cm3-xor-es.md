@@ -5,7 +5,7 @@ author: Aldair Maihuiri
 date: 2026-08-07
 ---
 
-🇬🇧 [Read in English](https://ginomaihuiri.github.io/crackmes/cm3-xor)
+🇬🇧 [Read in English](https://aldairmaihuiri-svchost.github.io/crackmes/cm3-xor)
 
 # Crackme 03 — XOR Stack Strings: Texto cifrado embebido en el flujo de instrucciones
 
@@ -333,9 +333,9 @@ necesaria para reconocerlo y revertirlo cuando aparece en malware real.
 
 *Parte de una serie de writeups de crackmes cubriendo binarios progresivamente más difíciles — desde comparaciones hardcodeadas hasta chequeos ofuscados, funciones hash propias y técnicas anti-debug.*
 
-*Los binarios están disponibles en [github.com/GinoMaihuiri/Crackmes](https://github.com/GinoMaihuiri/Crackmes)*
+*Los binarios están disponibles en [github.com/AldairMaihuiri-svchost/Crackmes](https://github.com/AldairMaihuiri-svchost/Crackmes)*
 
-*Todos los writeups: [ginomaihuiri.github.io](https://ginomaihuiri.github.io)*
+*Todos los writeups: [aldairmaihuiri-svchost.github.io](https://aldairmaihuiri-svchost.github.io)*
 
 ---
 
