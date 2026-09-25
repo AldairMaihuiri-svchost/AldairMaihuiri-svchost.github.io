@@ -309,5 +309,15 @@ Entendiste:
 
 - C vs Rust para implementación
 
+Xtra:
+
+- ¿por qué el cifrado híbrido (AES + RSA/ECDH) es superior a usar únicamente RSA o únicamente AES en un ransomware. ¿Qué problema concreto resuelve cada algoritmo y qué pasaría si eliminaras uno de los dos.?
+- En el flujo del locker, ¿por qué se cifra primero la file_key con la master_pubkey y no al revés? ¿Qué implicaciones de seguridad tendría invertir el orden?
+- identifique diferencias entre WannaCry (2017) , LockBit 3.0 (2022) , Jigsaw (2016) en términos de:
+Vector de propagación
+Algoritmos criptográficos usados
+Modelo de negocio (¿RaaS o no?)
+Velocidad de cifrado
+
 **Siguiente**: Módulo 02 — Algoritmos criptográficos (AES, ChaCha20, RSA, ECDH)
 
