@@ -5,7 +5,7 @@ author: Aldair Maihuiri
 date: 2026-08-07
 ---
 
-🇬🇧 [Read in English](https://ginomaihuiri.github.io/crackmes/cm5-transform)
+🇬🇧 [Read in English](https://aldairmaihuiri-svchost.github.io/crackmes/cm5-transform)
 
 # Crackme 05 — Transformar antes de comparar: El primer crackme sin strcmp
 
@@ -713,9 +713,9 @@ análisis.
 
 *Parte de una serie de writeups de crackmes cubriendo binarios progresivamente más difíciles.*
 
-*Los binarios están disponibles en [github.com/GinoMaihuiri/Crackmes](https://github.com/GinoMaihuiri/Crackmes)*
-*Tooling: [github.com/GinoMaihuiri/Crackmes/tree/main/Tooling](https://github.com/GinoMaihuiri/Crackmes/tree/main/Tooling)*
-*Todos los writeups: [ginomaihuiri.github.io](https://ginomaihuiri.github.io)*
+*Los binarios están disponibles en [github.com/AldairMaihuiri-svchost/Crackmes](https://github.com/AldairMaihuiri-svchost/Crackmes)*
+*Tooling: [github.com/AldairMaihuiri-svchost/Crackmes/tree/main/Tooling](https://github.com/AldairMaihuiri-svchost/Crackmes/tree/main/Tooling)*
+*Todos los writeups: [aldairmaihuiri-svchost.github.io](https://aldairmaihuiri-svchost.github.io)*
 
 ---
 
