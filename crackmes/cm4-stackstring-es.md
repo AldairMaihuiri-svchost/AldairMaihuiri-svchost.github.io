@@ -5,7 +5,7 @@ author: Aldair Maihuiri
 date: 2026-08-07
 ---
 
-🇬🇧 [Read in English](https://ginomaihuiri.github.io/crackmes/cm4-stackstring)
+🇬🇧 [Read in English](https://aldairmaihuiri-schost.github.io/crackmes/cm4-stackstring)
 
 # Crackme 04 — Stack Strings Puras: Diez instrucciones movb que strings no puede ver
 
@@ -325,9 +325,9 @@ independientes que se combinan.
 
 *Parte de una serie de writeups de crackmes cubriendo binarios progresivamente más difíciles — desde comparaciones hardcodeadas hasta chequeos ofuscados, funciones hash propias y técnicas anti-debug.*
 
-*Los binarios están disponibles en [github.com/GinoMaihuiri/Crackmes](https://github.com/GinoMaihuiri/Crackmes)*
+*Los binarios están disponibles en [github.com/AldairMaihuiri-svchost/Crackmes](https://github.com/AldairMaihuiri-svchost/Crackmes)*
 
-*Todos los writeups: [ginomaihuiri.github.io](https://ginomaihuiri.github.io)*
+*Todos los writeups: [aldairmaihuiri-svchost.github.io](https://aldairmaihuiri-svchost.github.io)*
 
 ---
 
