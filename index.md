@@ -9,15 +9,13 @@ My specialization is binary reverse engineering, malware analysis,
 and exploit development — at the assembly and debugger level,
 on Linux ELF and Windows PE binaries.
 Here is what that looks like in practice:
-- Reversed LockBit's string obfuscation mechanism (affine cipher, stack strings,
-  dynamic API resolution) — documented in a public writeup
+
+- Reversed LockBit’s string obfuscation mechanism (affine cipher, stack strings, dynamic API resolution) — documented in a     public writeup
 - Wrote YARA detection rules for LockBit and SolarisLoader, published on YARAhub
-- Built 5 original crackmes targeting specific obfuscation techniques, solved and
-  documented each one with full assembly analysis in English and Spanish
-- Implemented ptrace tooling in Rust: Zero Flag hijacking and SSP bypass via
-  stack canary manipulation
-- Working toward OSED (EXP-301) — building Linux exploit development proficiency
-  from a Windows RE background
+- Simulated ransomware architecture and cryptographic schemes (AES-256, ChaCha20-Poly1305, RSA-OAEP, Multi-Master ECDH) to     drive defensive engineering and mitigation strategies
+- Built 5 original crackmes targeting specific obfuscation techniques, solved and documented each one with full assembly       analysis in English and Spanish
+- Implemented ptrace tooling in Rust: Zero Flag hijacking and SSP bypass via stack canary manipulation
+- Working toward OSED (EXP-301) — building Linux exploit development proficiency from a Windows RE background Systems          engineering
 Systems engineering student · Lima, Peru
 ---
 ## Books in progress
