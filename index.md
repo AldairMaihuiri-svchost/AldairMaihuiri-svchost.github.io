@@ -60,6 +60,10 @@ strategies from the defensive side.
   How ransomware is built — fundamentals and basic architecture before moving into
   simulation and mitigation.
 
+- **[Module 2: Cryptographic Algorithms](Ransomware/Ransomware-Modulo2-en)**
+  ([versión en español](Ransomware/Ransomware-Modulo2))
+  The cryptographic toolkit behind modern encryption schemes — AES-256, ChaCha20-Poly1305, 
+  RSA-OAEP, ECDH (Multi-Master Pattern), HKDF, and CSPRNG implementations.
 ---
 ## Cryptography research
 - **[DES-M — Structural Modification of DES S-boxes: Reference Implementation, Differential Analysis, and Preliminary Study of Language Model Behavior](DES-M/des-m-en)**
