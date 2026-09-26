@@ -8,8 +8,7 @@ author: Aldair Maihuiri
 © 2026 Aldair Maihuiri. Todos los derechos reservados.
 Este documento puede compartirse con atribución al autor. La reproducción total o parcial sin autorización previa está prohibida.
 
----© 2026 Aldair Maihuiri. Todos los derechos reservados.
-Se permite compartir con atribución al autor. La reproducción sin autorización previa está prohibida.
+---
 # Módulo 01 — Introducción al Curso de Ransomware (Red team)
 
 
