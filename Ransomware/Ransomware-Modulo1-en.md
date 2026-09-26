@@ -3,6 +3,12 @@ title: "Ransomware Red Teaming — Module 1: Introduction"
 description: "How is ransomware built?"
 author: Aldair Maihuiri
 ---
+---
+
+© 2026 Aldair Maihuiri. All rights reserved.
+This document may be shared with attribution to the author. Full or partial reproduction without prior authorization is prohibited.
+
+---
 # Module 01 — Introduction to the Ransomware Course (Red Team)
 
 
@@ -321,3 +327,8 @@ Business model (RaaS vs. non-RaaS)
 Encryption speed
 
 **Next**: Module 02 — Cryptographic algorithms (AES, ChaCha20, RSA, ECDH)
+
+---
+
+© 2026 Aldair Maihuiri. All rights reserved.
+Sharing with attribution is welcome. Unauthorized reproduction is prohibited.
