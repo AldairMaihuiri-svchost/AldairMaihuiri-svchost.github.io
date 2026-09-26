@@ -3,6 +3,13 @@ title: "Ransomware Red Teaming — Module 1: Introduction"
 description: "How is ransomware built?"
 author: Aldair Maihuiri
 ---
+---
+
+© 2026 Aldair Maihuiri. Todos los derechos reservados.
+Este documento puede compartirse con atribución al autor. La reproducción total o parcial sin autorización previa está prohibida.
+
+---© 2026 Aldair Maihuiri. Todos los derechos reservados.
+Se permite compartir con atribución al autor. La reproducción sin autorización previa está prohibida.
 # Módulo 01 — Introducción al Curso de Ransomware (Red team)
 
 
@@ -321,3 +328,7 @@ Velocidad de cifrado
 
 **Siguiente**: Módulo 02 — Algoritmos criptográficos (AES, ChaCha20, RSA, ECDH)
 
+---
+
+© 2026 Aldair Maihuiri. Todos los derechos reservados.
+Se permite compartir con atribución al autor. La reproducción sin autorización previa está prohibida.
