@@ -330,9 +330,10 @@ void chacha20_crypt(ChaCha20Ctx *ctx, uint8_t *data, size_t len) {
 // ChaCha20-Poly1305 en Rust (crate chacha20poly1305)
 
 use chacha20poly1305::{
-    aead::{Aead, AeadCore, KeyInit, OsRng},
+    aead::{Aead, AeadCore, KeyInit},
     ChaCha20Poly1305, Nonce, Key
 };
+use rand_core::OsRng;
 
 pub struct ChaChaCipher {
     cipher: ChaCha20Poly1305,
@@ -513,66 +514,107 @@ DESCIFRADO (Atacante):
 
 #include <bcrypt.h>
 
-BOOL ECDH_GenerateKeyPair(BCRYPT_KEY_HANDLE *phKey,
+// phAlg se pasa hacia afuera: el caller debe llamar
+// BCryptCloseAlgorithmProvider(*phAlg, 0) DESPUÉS de BCryptDestroyKey(*phKey)
+BOOL ECDH_GenerateKeyPair(BCRYPT_ALG_HANDLE *phAlg,
+                           BCRYPT_KEY_HANDLE *phKey,
                            PBYTE *ppubKeyBlob, DWORD *pcbPubKey) {
-    BCRYPT_ALG_HANDLE hAlg;
-    BCryptOpenAlgorithmProvider(&hAlg, BCRYPT_ECDH_P256_ALGORITHM, NULL, 0);
-    BCryptGenerateKeyPair(hAlg, phKey, 256, 0);
-    BCryptFinalizeKeyPair(*phKey, 0);
+    NTSTATUS status;
+    *phAlg       = NULL;
+    *phKey       = NULL;
+    *ppubKeyBlob = NULL;
 
-    // Exportar clave pública
-    BCryptExportKey(*phKey, NULL, BCRYPT_ECCPUBLIC_BLOB, NULL, 0, pcbPubKey, 0);
+    status = BCryptOpenAlgorithmProvider(phAlg, BCRYPT_ECDH_P256_ALGORITHM, NULL, 0);
+    if (!BCRYPT_SUCCESS(status)) return FALSE;
+
+    status = BCryptGenerateKeyPair(*phAlg, phKey, 256, 0);
+    if (!BCRYPT_SUCCESS(status)) goto fail;
+
+    status = BCryptFinalizeKeyPair(*phKey, 0);
+    if (!BCRYPT_SUCCESS(status)) goto fail;
+
+    status = BCryptExportKey(*phKey, NULL, BCRYPT_ECCPUBLIC_BLOB,
+        NULL, 0, pcbPubKey, 0);
+    if (!BCRYPT_SUCCESS(status)) goto fail;
+
     *ppubKeyBlob = (PBYTE)HeapAlloc(GetProcessHeap(), 0, *pcbPubKey);
-    BCryptExportKey(*phKey, NULL, BCRYPT_ECCPUBLIC_BLOB,
-        *ppubKeyBlob, *pcbPubKey, pcbPubKey, 0);
+    if (!*ppubKeyBlob) goto fail;
 
-    BCryptCloseAlgorithmProvider(hAlg, 0);
-    return TRUE;
+    status = BCryptExportKey(*phKey, NULL, BCRYPT_ECCPUBLIC_BLOB,
+        *ppubKeyBlob, *pcbPubKey, pcbPubKey, 0);
+    if (!BCRYPT_SUCCESS(status)) {
+        HeapFree(GetProcessHeap(), 0, *ppubKeyBlob);
+        *ppubKeyBlob = NULL;
+        goto fail;
+    }
+
+    return TRUE;  // hAlg sigue abierto — el caller lo cierra
+
+fail:
+    if (*phKey) { BCryptDestroyKey(*phKey); *phKey = NULL; }
+    if (*phAlg) { BCryptCloseAlgorithmProvider(*phAlg, 0); *phAlg = NULL; }
+    return FALSE;
 }
 
 // Calcular shared secret ECDH
 BOOL ECDH_ComputeShared(BCRYPT_KEY_HANDLE hMyPrivKey,
                          PBYTE peerPubKeyBlob, DWORD peerPubKeyBlobLen,
                          PBYTE *ppSharedSecret, DWORD *pcbSharedSecret) {
-    BCRYPT_ALG_HANDLE hAlg;
-    BCRYPT_KEY_HANDLE hPeerKey;
-    BCRYPT_SECRET_HANDLE hSecret;
+    BCRYPT_ALG_HANDLE    hAlg    = NULL;
+    BCRYPT_KEY_HANDLE    hPeerKey = NULL;
+    BCRYPT_SECRET_HANDLE hSecret  = NULL;
+    NTSTATUS status;
+    BOOL success = FALSE;
 
-    BCryptOpenAlgorithmProvider(&hAlg, BCRYPT_ECDH_P256_ALGORITHM, NULL, 0);
+    *ppSharedSecret  = NULL;
+    *pcbSharedSecret = 0;
 
-    // Importar clave pública del peer
-    BCryptImportKeyPair(hAlg, NULL, BCRYPT_ECCPUBLIC_BLOB,
+    status = BCryptOpenAlgorithmProvider(&hAlg, BCRYPT_ECDH_P256_ALGORITHM, NULL, 0);
+    if (!BCRYPT_SUCCESS(status)) goto cleanup;
+
+    status = BCryptImportKeyPair(hAlg, NULL, BCRYPT_ECCPUBLIC_BLOB,
         &hPeerKey, peerPubKeyBlob, peerPubKeyBlobLen, 0);
+    if (!BCRYPT_SUCCESS(status)) goto cleanup;
 
-    // Calcular shared secret
-    BCryptSecretAgreement(hMyPrivKey, hPeerKey, &hSecret, 0);
+    status = BCryptSecretAgreement(hMyPrivKey, hPeerKey, &hSecret, 0);
+    if (!BCRYPT_SUCCESS(status)) goto cleanup;
 
-    // Derivar material de clave con SHA-256 (32 bytes)
-    // Sin especificar hash, BCrypt usa SHA-1 por defecto → solo 20 bytes
+    // SHA-256 explícito → 32 bytes (suficiente para AES-256)
     BCryptBuffer kdfBuffer = {
         sizeof(BCRYPT_SHA256_ALGORITHM),
         KDF_HASH_ALGORITHM,
         (PVOID)BCRYPT_SHA256_ALGORITHM
     };
-    BCryptBufferDesc kdfParams = {
-        BCRYPTBUFFER_VERSION, 1, &kdfBuffer
-    };
+    BCryptBufferDesc kdfParams = { BCRYPTBUFFER_VERSION, 1, &kdfBuffer };
 
-    BCryptDeriveKey(hSecret, BCRYPT_KDF_HASH, &kdfParams,
+    status = BCryptDeriveKey(hSecret, BCRYPT_KDF_HASH, &kdfParams,
         NULL, 0, pcbSharedSecret, 0);
-    *ppSharedSecret = (PBYTE)HeapAlloc(GetProcessHeap(), 0, *pcbSharedSecret);
-    BCryptDeriveKey(hSecret, BCRYPT_KDF_HASH, &kdfParams,
-        *ppSharedSecret, *pcbSharedSecret, pcbSharedSecret, 0);
+    if (!BCRYPT_SUCCESS(status)) goto cleanup;
 
-    BCryptDestroySecret(hSecret);
-    BCryptDestroyKey(hPeerKey);
-    BCryptCloseAlgorithmProvider(hAlg, 0);
-    return TRUE;
+    *ppSharedSecret = (PBYTE)HeapAlloc(GetProcessHeap(), 0, *pcbSharedSecret);
+    if (!*ppSharedSecret) goto cleanup;
+
+    status = BCryptDeriveKey(hSecret, BCRYPT_KDF_HASH, &kdfParams,
+        *ppSharedSecret, *pcbSharedSecret, pcbSharedSecret, 0);
+    if (!BCRYPT_SUCCESS(status)) {
+        HeapFree(GetProcessHeap(), 0, *ppSharedSecret);
+        *ppSharedSecret = NULL;
+        goto cleanup;
+    }
+
+    success = TRUE;
+
+cleanup:
+    if (hSecret)  BCryptDestroySecret(hSecret);
+    if (hPeerKey) BCryptDestroyKey(hPeerKey);
+    if (hAlg)     BCryptCloseAlgorithmProvider(hAlg, 0);
+    return success;
 }
 
 // X25519 ECDH en Rust (más rápido que P-256)
 
-use x25519_dalek::{EphemeralSecret, PublicKey, StaticSecret};
+// Cargo.toml requiere: x25519-dalek = { version = "2", features = ["static_secrets"] }
+use x25519_dalek::{PublicKey, StaticSecret};
 use rand_core::OsRng;
 use sha2::{Sha256, Digest};
 
@@ -609,10 +651,11 @@ impl ECDHKeyPair {
 }
 
 // Ejemplo de uso en el locker:
+// Footer del archivo: [ephemeral_pub (32 bytes)] [nonce (12 bytes)]
 pub fn encrypt_file_ecdh(
     master_public_bytes: &[u8; 32],  // Embebido en binario
     file_data: &[u8]
-) -> (Vec<u8>, [u8; 32]) {  // (ciphertext, ephemeral_pub_to_store_in_footer)
+) -> (Vec<u8>, [u8; 32], [u8; 12]) {  // (ciphertext, ephemeral_pub, nonce)
 
     // Generar par efímero para este archivo
     let ephemeral = ECDHKeyPair::generate();
@@ -624,9 +667,9 @@ pub fn encrypt_file_ecdh(
     let cipher = ChaChaCipher::new(&file_key);
     let ciphertext = cipher.encrypt(&nonce, file_data);
 
-    // La clave pública efímera va al footer del archivo
-    // El atacante puede reconstruir el shared secret con su master_private
-    (ciphertext, ephemeral.public_bytes())
+    // Footer necesita tanto la clave pública efímera como el nonce:
+    // sin el nonce, el descifrado es imposible aunque se tenga master_priv
+    (ciphertext, ephemeral.public_bytes(), nonce)
 }
 ```
 
