@@ -192,7 +192,7 @@ DESCIFRADO (el atacante puede descifrar):
 
 - Solución híbrida: AES para datos (rápido), RSA para proteger la clave AES
 
-> **¿Por qué cifrado híbrido y no solo RSA o solo AES?** RSA-2048 tiene un límite físico: con padding OAEP-SHA1 puede cifrar máximo ~214 bytes de datos en una operación. Un archivo de 1 GB requeriría millones de operaciones RSA secuenciales, tardando horas. AES por sí solo sería instantáneo pero crea un problema irresolvable de gestión de claves: si guardas la clave AES en el archivo, el investigador forense puede extraerla; si la mandas al C2 durante el cifrado, necesitas conectividad y dejas artefactos de red detectables. La solución híbrida elimina ambos problemas: AES cifra datos a velocidad de hardware (2-3 GB/s con AES-NI), y RSA/ECDH protege esa clave AES de 32 bytes en microsegundos por archivo. La clave protegida en el footer es criptográficamente inútil sin la private key del atacante, que nunca abandona el C2. Por eso el análisis forense post-incidente no puede descifrar archivos aunque tenga el binario completo del locker.
+> **¿Por qué cifrado híbrido y no solo RSA o solo AES?** RSA-2048 tiene un límite físico: con padding OAEP-SHA256 puede cifrar máximo ~190 bytes de datos en una operación. Un archivo de 1 GB requeriría millones de operaciones RSA secuenciales, tardando horas. AES por sí solo sería instantáneo pero crea un problema irresolvable de gestión de claves: si guardas la clave AES en el archivo, el investigador forense puede extraerla; si la mandas al C2 durante el cifrado, necesitas conectividad y dejas artefactos de red detectables. La solución híbrida elimina ambos problemas: AES cifra datos a velocidad de hardware (2-3 GB/s con AES-NI), y RSA/ECDH protege esa clave AES de 32 bytes en microsegundos por archivo. La clave protegida en el footer es criptográficamente inútil sin la private key del atacante, que nunca abandona el C2. Por eso el análisis forense post-incidente no puede descifrar archivos aunque tenga el binario completo del locker.
 
 ## 1.5 El Código Fuente: C vs Rust
 
@@ -213,7 +213,7 @@ El curso ofrece ambos. Comparación relevante para ti:
 
 ```
   
-x86\_64-w64-mingw32-gcc -o ransomware.exe main.c -lws2\_32 -ladvapi32 -lcrypt32  
+x86_64-w64-mingw32-gcc -o ransomware.exe main.c -lws2_32 -ladvapi32 -lcrypt32 -lbcrypt
   
 \# Con optimizaciones  
 x86\_64-w64-mingw32-gcc -O2 -s -o ransomware.exe main.c \\  
@@ -274,11 +274,16 @@ cargo --version
 \# Para cross-compile, también OpenSSL:  
 sudo pacman -S mingw-w64-openssl  
   
-\# Dependencias de criptografía (Rust)  
-\# En Cargo.toml:  
-\# aes = "0.8"  
-\# chacha20poly1305 = "0.10"  
-\# p256 = "0.13"  (ECDH)
+\# Dependencias de criptografía (Rust)
+\# En Cargo.toml:
+\# aes = "0.8"
+\# cbc = "0.1"
+\# chacha20poly1305 = "0.10"
+\# x25519-dalek = { version = "2", features = ["static_secrets"] }  # X25519 ECDH (Rust)
+\# p256 = "0.13"       # P-256 ECDH (solo si usas la curva P-256 en Rust; el código C usa BCrypt)
+\# rsa = "0.9"
+\# sha2 = "0.10"
+\# rand_core = "0.6"
 ```
 
 ### En la VM de Windows (para testing)
