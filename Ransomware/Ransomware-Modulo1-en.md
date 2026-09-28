@@ -192,7 +192,7 @@ DECRYPTION (the attacker can decrypt):
 
 - Hybrid solution: AES for data (fast), RSA to protect the AES key
 
-> **Why hybrid encryption and not just RSA or just AES?** RSA-2048 has a physical limit: with OAEP-SHA1 padding it can encrypt at most ~214 bytes of data per operation. A 1 GB file would require millions of sequential RSA operations, taking hours. AES alone would be instantaneous but creates an irresolvable key management problem: if you store the AES key in the file, the forensic investigator can extract it; if you send it to the C2 during encryption, you need connectivity and leave detectable network artifacts. The hybrid solution eliminates both problems: AES encrypts data at hardware speed (2–3 GB/s with AES-NI), and RSA/ECDH protects that 32-byte AES key in microseconds per file. The key stored in the footer is cryptographically useless without the attacker's private key, which never leaves the C2. This is why post-incident forensic analysis cannot decrypt files even with the complete locker binary.
+> **Why hybrid encryption and not just RSA or just AES?** RSA-2048 has a physical limit: with OAEP-SHA256 padding it can encrypt at most ~190 bytes of data per operation. A 1 GB file would require millions of sequential RSA operations, taking hours. AES alone would be instantaneous but creates an irresolvable key management problem: if you store the AES key in the file, the forensic investigator can extract it; if you send it to the C2 during encryption, you need connectivity and leave detectable network artifacts. The hybrid solution eliminates both problems: AES encrypts data at hardware speed (2–3 GB/s with AES-NI), and RSA/ECDH protects that 32-byte AES key in microseconds per file. The key stored in the footer is cryptographically useless without the attacker's private key, which never leaves the C2. This is why post-incident forensic analysis cannot decrypt files even with the complete locker binary.
 
 ## 1.5 The Source Code: C vs Rust
 
@@ -212,7 +212,7 @@ The course covers both. Relevant comparison:
 ### C Setup (MinGW on Linux for Windows cross-compilation)
 
 ```bash
-x86_64-w64-mingw32-gcc -o ransomware.exe main.c -lws2_32 -ladvapi32 -lcrypt32
+x86_64-w64-mingw32-gcc -o ransomware.exe main.c -lws2_32 -ladvapi32 -lcrypt32 -lbcrypt
 
 # With optimizations
 x86_64-w64-mingw32-gcc -O2 -s -o ransomware.exe main.c \
@@ -276,8 +276,13 @@ sudo pacman -S mingw-w64-openssl
 # Cryptography dependencies (Rust)
 # In Cargo.toml:
 # aes = "0.8"
+# cbc = "0.1"
 # chacha20poly1305 = "0.10"
-# p256 = "0.13"  (ECDH)
+# x25519-dalek = { version = "2", features = ["static_secrets"] }  # X25519 ECDH (used in Rust code)
+# p256 = "0.13"       # P-256 ECDH (only if using P-256 in Rust; the C code uses BCrypt directly)
+# rsa = "0.9"
+# sha2 = "0.10"
+# rand_core = "0.6"
 ```
 
 ### In the Windows VM (for testing)
