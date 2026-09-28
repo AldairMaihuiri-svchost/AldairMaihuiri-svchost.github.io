@@ -156,39 +156,72 @@ pub fn aes256_decrypt(key: &[u8; 32], iv: &[u8; 16], ciphertext: &[u8]) -> Vec<u
 ### AES-CTR (stream mode — faster, no padding)
 
 ```
-// AES-256-CTR with BCrypt
-// Advantage: no padding required, can encrypt any size
-
 BOOL AES_CTR_Crypt(const BYTE *key, DWORD keyLen,
-                    const BYTE *nonce, DWORD nonceLen,
-                    PBYTE data, DWORD dataLen) {
+                   const BYTE *nonce, DWORD nonceLen,  // nonce: 12 bytes
+                   PBYTE data, DWORD dataLen) {
+
     BCRYPT_ALG_HANDLE hAlg = NULL;
     BCRYPT_KEY_HANDLE hKey = NULL;
     DWORD cbKeyObj = 0, cbResult = 0;
     PBYTE pbKeyObj = NULL;
     BOOL success = FALSE;
+    NTSTATUS status;
 
-    BCryptOpenAlgorithmProvider(&hAlg, BCRYPT_AES_ALGORITHM, NULL, 0);
-    BCryptGetProperty(hAlg, BCRYPT_OBJECT_LENGTH,
+    status = BCryptOpenAlgorithmProvider(&hAlg, BCRYPT_AES_ALGORITHM, NULL, 0);
+    if (!BCRYPT_SUCCESS(status)) return FALSE;
+
+    status = BCryptGetProperty(hAlg, BCRYPT_OBJECT_LENGTH,
         (PBYTE)&cbKeyObj, sizeof(DWORD), &cbResult, 0);
+    if (!BCRYPT_SUCCESS(status)) goto cleanup;
+
     pbKeyObj = (PBYTE)HeapAlloc(GetProcessHeap(), 0, cbKeyObj);
+    if (!pbKeyObj) goto cleanup;
 
-    // CTR mode
-    BCryptSetProperty(hAlg, BCRYPT_CHAINING_MODE,
-        (PBYTE)BCRYPT_CHAIN_MODE_CFB,  // CNG has no native CTR → use CFB
-        sizeof(BCRYPT_CHAIN_MODE_CFB), 0);
+    // CTR requiere ECB — ciframos el bloque contador manualmente
+    status = BCryptSetProperty(hAlg, BCRYPT_CHAINING_MODE,
+        (PBYTE)BCRYPT_CHAIN_MODE_ECB,
+        sizeof(BCRYPT_CHAIN_MODE_ECB), 0);
+    if (!BCRYPT_SUCCESS(status)) goto cleanup;
 
-    BCryptGenerateSymmetricKey(hAlg, &hKey, pbKeyObj, cbKeyObj,
+    status = BCryptGenerateSymmetricKey(hAlg, &hKey, pbKeyObj, cbKeyObj,
         (PBYTE)key, keyLen, 0);
+    if (!BCRYPT_SUCCESS(status)) goto cleanup;
 
-    DWORD cbCipherText = 0;
-    BCryptEncrypt(hKey, data, dataLen, NULL,
-        (PBYTE)nonce, nonceLen, data, dataLen, &cbCipherText, 0);
+    // Bloque contador: nonce (12 bytes) || counter (4 bytes, big-endian) = 16 bytes
+    BYTE counterBlock[16] = {0};
+    memcpy(counterBlock, nonce, nonceLen <= 12 ? nonceLen : 12);
+    // counterBlock[12..15] = 0x00000001 (RFC 3686) o 0x00000000 según implementación
+    counterBlock[15] = 1;
+
+    DWORD pos = 0;
+    while (pos < dataLen) {
+        // Cifrar el bloque contador con ECB → keystream block
+        BYTE keystream[16];
+        DWORD cbOut = 0;
+        status = BCryptEncrypt(hKey, counterBlock, 16, NULL,
+            NULL, 0,  // No IV en ECB
+            keystream, 16, &cbOut, 0);
+        if (!BCRYPT_SUCCESS(status)) goto cleanup;
+
+        // XOR con los datos (hasta 16 bytes o lo que queda)
+        DWORD chunk = min(16, dataLen - pos);
+        for (DWORD i = 0; i < chunk; i++)
+            data[pos + i] ^= keystream[i];
+
+        pos += chunk;
+
+        // Incrementar el contador (big-endian, bytes [12..15])
+        for (int i = 15; i >= 12; i--) {
+            if (++counterBlock[i] != 0) break;
+        }
+    }
 
     success = TRUE;
-    if (hKey) BCryptDestroyKey(hKey);
-    if (hAlg) BCryptCloseAlgorithmProvider(hAlg, 0);
-    HeapFree(GetProcessHeap(), 0, pbKeyObj);
+
+cleanup:
+    if (hKey)     BCryptDestroyKey(hKey);
+    if (hAlg)     BCryptCloseAlgorithmProvider(hAlg, 0);
+    if (pbKeyObj) HeapFree(GetProcessHeap(), 0, pbKeyObj);
     return success;
 }
 ```
