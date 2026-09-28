@@ -547,11 +547,21 @@ BOOL ECDH_ComputeShared(BCRYPT_KEY_HANDLE hMyPrivKey,
     // Calcular shared secret
     BCryptSecretAgreement(hMyPrivKey, hPeerKey, &hSecret, 0);
 
-    // Derivar material de clave (KDF)
-    BCryptDeriveKey(hSecret, BCRYPT_KDF_HASH, NULL,
+    // Derivar material de clave con SHA-256 (32 bytes)
+    // Sin especificar hash, BCrypt usa SHA-1 por defecto → solo 20 bytes
+    BCryptBuffer kdfBuffer = {
+        sizeof(BCRYPT_SHA256_ALGORITHM),
+        KDF_HASH_ALGORITHM,
+        (PVOID)BCRYPT_SHA256_ALGORITHM
+    };
+    BCryptBufferDesc kdfParams = {
+        BCRYPTBUFFER_VERSION, 1, &kdfBuffer
+    };
+
+    BCryptDeriveKey(hSecret, BCRYPT_KDF_HASH, &kdfParams,
         NULL, 0, pcbSharedSecret, 0);
     *ppSharedSecret = (PBYTE)HeapAlloc(GetProcessHeap(), 0, *pcbSharedSecret);
-    BCryptDeriveKey(hSecret, BCRYPT_KDF_HASH, NULL,
+    BCryptDeriveKey(hSecret, BCRYPT_KDF_HASH, &kdfParams,
         *ppSharedSecret, *pcbSharedSecret, pcbSharedSecret, 0);
 
     BCryptDestroySecret(hSecret);
