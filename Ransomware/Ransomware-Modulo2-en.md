@@ -1,869 +1,246 @@
 ---
 title: "Ransomware Red Teaming — Module 2: Cryptographic Algorithms"
-description: "AES-256-CBC, ChaCha20-Poly1305, RSA-OAEP, ECDH and HKDF — the cryptographic toolkit behind modern ransomware encryption schemes, with full C and Rust implementations."
+description: "AES, ChaCha20-Poly1305, RSA-OAEP, ECDH, HKDF, and random generation: properties, limits, sample analysis, and laboratory verification."
 author: Aldair Maihuiri
 ---
-# Module 02 — Cryptographic Algorithms
-
-
-## 2.1 Symmetric Cryptography — AES
-
-### AES-256-CBC (common mode in ransomware)
-
-**Parameters**:
-
-- Key: 256 bits (32 bytes)
-- IV: 128 bits (16 bytes) — one per file, random
-- Block size: 128 bits (16 bytes)
-- Padding: PKCS#7
-
-```
-// === AES-256-CBC with Windows CNG (BCrypt) ===
-// Advantage: no external dependencies, ships with Windows
-
-#include <windows.h>
-#include <bcrypt.h>
-#pragma comment(lib, "bcrypt.lib")
-
-typedef struct {
-    BCRYPT_ALG_HANDLE hAlg;
-    BCRYPT_KEY_HANDLE hKey;
-    DWORD cbBlock;
-    DWORD cbKeyObj;
-    PBYTE pbKeyObj;
-} AES_CTX;
-
-BOOL AES_Init(AES_CTX *ctx, const BYTE *key, DWORD keyLen) {
-    NTSTATUS status;
-    DWORD cbResult = 0;
-
-    // Open AES provider
-    status = BCryptOpenAlgorithmProvider(
-        &ctx->hAlg, BCRYPT_AES_ALGORITHM, NULL, 0);
-    if (!BCRYPT_SUCCESS(status)) return FALSE;
-
-    // Get key object size
-    status = BCryptGetProperty(ctx->hAlg, BCRYPT_OBJECT_LENGTH,
-        (PBYTE)&ctx->cbKeyObj, sizeof(DWORD), &cbResult, 0);
-    if (!BCRYPT_SUCCESS(status)) return FALSE;
-
-    ctx->pbKeyObj = (PBYTE)HeapAlloc(GetProcessHeap(), 0, ctx->cbKeyObj);
-
-    // Get block size
-    BCryptGetProperty(ctx->hAlg, BCRYPT_BLOCK_LENGTH,
-        (PBYTE)&ctx->cbBlock, sizeof(DWORD), &cbResult, 0);
-
-    // CBC mode
-    BCryptSetProperty(ctx->hAlg, BCRYPT_CHAINING_MODE,
-        (PBYTE)BCRYPT_CHAIN_MODE_CBC,
-        sizeof(BCRYPT_CHAIN_MODE_CBC), 0);
-
-    // Generate key object
-    status = BCryptGenerateSymmetricKey(
-        ctx->hAlg, &ctx->hKey, ctx->pbKeyObj, ctx->cbKeyObj,
-        (PBYTE)key, keyLen, 0);
-
-    return BCRYPT_SUCCESS(status);
-}
-
-// Encrypt buffer (in-place, with padding)
-// Returns output size (may be larger due to padding)
-DWORD AES_Encrypt(AES_CTX *ctx, PBYTE iv,
-                   PBYTE input, DWORD inputLen,
-                   PBYTE output, DWORD outputBufSize) {
-    DWORD cbCipherText = 0;
-    NTSTATUS status;
-
-    // Calculate padded size
-    DWORD padded = ((inputLen / 16) + 1) * 16;
-    if (outputBufSize < padded) return 0;
-
-    // Copy input to output (BCrypt can work in-place)
-    memcpy(output, input, inputLen);
-
-    status = BCryptEncrypt(
-        ctx->hKey,
-        output, inputLen,   // input
-        NULL,               // padding info
-        iv, 16,             // IV (modified → CBC chain)
-        output, padded,     // output (in-place)
-        &cbCipherText,
-        BCRYPT_BLOCK_PADDING
-    );
-
-    return BCRYPT_SUCCESS(status) ? cbCipherText : 0;
-}
-
-DWORD AES_Decrypt(AES_CTX *ctx, PBYTE iv,
-                   PBYTE input, DWORD inputLen,
-                   PBYTE output, DWORD outputBufSize) {
-    DWORD cbPlainText = 0;
-    NTSTATUS status;
-
-    memcpy(output, input, inputLen);
-
-    status = BCryptDecrypt(
-        ctx->hKey,
-        output, inputLen,
-        NULL,
-        iv, 16,
-        output, inputLen,
-        &cbPlainText,
-        BCRYPT_BLOCK_PADDING
-    );
-
-    return BCRYPT_SUCCESS(status) ? cbPlainText : 0;
-}
-
-void AES_Free(AES_CTX *ctx) {
-    if (ctx->hKey)    BCryptDestroyKey(ctx->hKey);
-    if (ctx->hAlg)    BCryptCloseAlgorithmProvider(ctx->hAlg, 0);
-    if (ctx->pbKeyObj) HeapFree(GetProcessHeap(), 0, ctx->pbKeyObj);
-}
-
-// === AES-256-CBC in Rust (aes + cbc crates) ===
-
-use aes::Aes256;
-use cbc::{Encryptor, Decryptor};
-use cbc::cipher::{BlockEncryptMut, BlockDecryptMut, KeyIvInit, block_padding::Pkcs7};
-
-type Aes256CbcEnc = Encryptor<Aes256>;
-type Aes256CbcDec = Decryptor<Aes256>;
-
-pub fn aes256_encrypt(key: &[u8; 32], iv: &[u8; 16], data: &[u8]) -> Vec<u8> {
-    // Calculate PKCS7-padded size
-    let padded_len = ((data.len() / 16) + 1) * 16;
-    let mut buf = vec![0u8; padded_len];
-    buf[..data.len()].copy_from_slice(data);
-
-    let ct = Aes256CbcEnc::new(key.into(), iv.into())
-        .encrypt_padded_mut::<Pkcs7>(&mut buf, data.len())
-        .expect("encryption failed");
-    ct.to_vec()
-}
-
-pub fn aes256_decrypt(key: &[u8; 32], iv: &[u8; 16], ciphertext: &[u8]) -> Vec<u8> {
-    let mut buf = ciphertext.to_vec();
-    let pt = Aes256CbcDec::new(key.into(), iv.into())
-        .decrypt_padded_mut::<Pkcs7>(&mut buf)
-        .expect("decryption failed");
-    pt.to_vec()
-}
-```
-
-> **Why AES-256-CBC and not another mode for the first example?** CBC (Cipher Block Chaining) was the dominant ransomware mode until 2020 for practical reasons: it appears as the most common example in OpenSSL and CNG/BCrypt documentation and tutorials, is well-documented, and its padding behavior is predictable — although in both APIs the chaining mode must be specified explicitly, it is not enabled by default. **Each 16-byte block is XOR'd with the previous block's ciphertext before encryption**, making identical plaintext blocks produce different ciphertext — an important property because files have predictable headers (PE headers, Office magic bytes). A random per-file IV is critical: without it, two files with the same beginning would produce the same ciphertext when encrypted with the same key, leaking information to the analyst. The cost of CBC is PKCS#7 padding — each file grows by up to 16 bytes, and the last encryption/decryption operation requires knowing the final size first. This makes it less ideal for very large files or streaming.
-
-### AES-CTR (stream mode — faster, no padding)
-
-```
-BOOL AES_CTR_Crypt(const BYTE *key, DWORD keyLen,
-                   const BYTE *nonce, DWORD nonceLen,  // nonce: 12 bytes
-                   PBYTE data, DWORD dataLen) {
-
-    BCRYPT_ALG_HANDLE hAlg = NULL;
-    BCRYPT_KEY_HANDLE hKey = NULL;
-    DWORD cbKeyObj = 0, cbResult = 0;
-    PBYTE pbKeyObj = NULL;
-    BOOL success = FALSE;
-    NTSTATUS status;
-
-    status = BCryptOpenAlgorithmProvider(&hAlg, BCRYPT_AES_ALGORITHM, NULL, 0);
-    if (!BCRYPT_SUCCESS(status)) return FALSE;
-
-    status = BCryptGetProperty(hAlg, BCRYPT_OBJECT_LENGTH,
-        (PBYTE)&cbKeyObj, sizeof(DWORD), &cbResult, 0);
-    if (!BCRYPT_SUCCESS(status)) goto cleanup;
-
-    pbKeyObj = (PBYTE)HeapAlloc(GetProcessHeap(), 0, cbKeyObj);
-    if (!pbKeyObj) goto cleanup;
-
-    // CTR requires ECB — we encrypt the counter block manually
-    status = BCryptSetProperty(hAlg, BCRYPT_CHAINING_MODE,
-        (PBYTE)BCRYPT_CHAIN_MODE_ECB,
-        sizeof(BCRYPT_CHAIN_MODE_ECB), 0);
-    if (!BCRYPT_SUCCESS(status)) goto cleanup;
-
-    status = BCryptGenerateSymmetricKey(hAlg, &hKey, pbKeyObj, cbKeyObj,
-        (PBYTE)key, keyLen, 0);
-    if (!BCRYPT_SUCCESS(status)) goto cleanup;
-
-    // Counter block: nonce (12 bytes) || counter (4 bytes, big-endian) = 16 bytes
-    BYTE counterBlock[16] = {0};
-    memcpy(counterBlock, nonce, nonceLen <= 12 ? nonceLen : 12);
-    // counterBlock[12..15] = 0x00000001 (RFC 3686); use 0x00000000 if your scheme requires it
-    counterBlock[15] = 1;
-
-    DWORD pos = 0;
-    while (pos < dataLen) {
-        // Encrypt the counter block with ECB → keystream block
-        BYTE keystream[16];
-        DWORD cbOut = 0;
-        status = BCryptEncrypt(hKey, counterBlock, 16, NULL,
-            NULL, 0,  // No IV in ECB mode
-            keystream, 16, &cbOut, 0);
-        if (!BCRYPT_SUCCESS(status)) goto cleanup;
-
-        // XOR with data (up to 16 bytes, or whatever remains)
-        DWORD chunk = min(16, dataLen - pos);
-        for (DWORD i = 0; i < chunk; i++)
-            data[pos + i] ^= keystream[i];
-
-        pos += chunk;
-
-        // Increment counter (big-endian, bytes [12..15])
-        for (int i = 15; i >= 12; i--) {
-            if (++counterBlock[i] != 0) break;
-        }
-    }
-
-    success = TRUE;
-
-cleanup:
-    if (hKey)     BCryptDestroyKey(hKey);
-    if (hAlg)     BCryptCloseAlgorithmProvider(hAlg, 0);
-    if (pbKeyObj) HeapFree(GetProcessHeap(), 0, pbKeyObj);
-    return success;
-}
-```
-
-
-## 2.2 ChaCha20-Poly1305 (Preferred in Modern Ransomware)
-
-### Why ChaCha20 over AES in ransomware
-
-| Criterion | AES-256-CBC | ChaCha20-Poly1305 |
-| - | - | - |
-| Speed without AES-NI | Slow | Very fast |
-| Speed with AES-NI | Very fast | Fast |
-| Authentication | No (pure CBC) | Yes (Poly1305 MAC) |
-| Padding | Required | No |
-| Nonce size | 16 bytes | 12 bytes |
-| Ransomware use | WannaCry, REvil | BlackCat, Akira |
-
-ChaCha20 does not use AES-NI → equally fast on legacy VMs and embedded systems.
-
-```
-// ChaCha20-Poly1305 in C (manual implementation)
-// Windows does not have native BCrypt ChaCha20 on all versions
-// Using a pure implementation
-
-#include <stdint.h>
-#include <string.h>
-
-// ChaCha20 quarter round
-#define QR(a,b,c,d) \
-    a += b; d ^= a; d = (d << 16) | (d >> 16); \
-    c += d; b ^= c; b = (b << 12) | (b >> 20); \
-    a += b; d ^= a; d = (d <<  8) | (d >> 24); \
-    c += d; b ^= c; b = (b <<  7) | (b >> 25);
-
-typedef struct {
-    uint32_t state[16];
-    uint8_t keystream[64];
-    int pos;
-} ChaCha20Ctx;
-
-static void chacha20_block(uint32_t out[16], const uint32_t in[16]) {
-    uint32_t x[16];
-    memcpy(x, in, 64);
-
-    for (int i = 0; i < 10; i++) {
-        // Column rounds
-        QR(x[0], x[4], x[8],  x[12]);
-        QR(x[1], x[5], x[9],  x[13]);
-        QR(x[2], x[6], x[10], x[14]);
-        QR(x[3], x[7], x[11], x[15]);
-        // Diagonal rounds
-        QR(x[0], x[5], x[10], x[15]);
-        QR(x[1], x[6], x[11], x[12]);
-        QR(x[2], x[7], x[8],  x[13]);
-        QR(x[3], x[4], x[9],  x[14]);
-    }
-    for (int i = 0; i < 16; i++) out[i] = x[i] + in[i];
-}
-
-void chacha20_init(ChaCha20Ctx *ctx,
-                   const uint8_t key[32],
-                   const uint8_t nonce[12],
-                   uint32_t counter) {
-    // Constant "expand 32-byte k"
-    ctx->state[0]  = 0x61707865;
-    ctx->state[1]  = 0x3320646e;
-    ctx->state[2]  = 0x79622d32;
-    ctx->state[3]  = 0x6b206574;
-
-    // Key (little-endian)
-    for (int i = 0; i < 8; i++) {
-        ctx->state[4+i] = ((uint32_t)key[i*4])        |
-                          ((uint32_t)key[i*4+1] <<  8) |
-                          ((uint32_t)key[i*4+2] << 16) |
-                          ((uint32_t)key[i*4+3] << 24);
-    }
-
-    ctx->state[12] = counter;  // Block counter
-
-    // Nonce (96-bit)
-    for (int i = 0; i < 3; i++) {
-        ctx->state[13+i] = ((uint32_t)nonce[i*4])        |
-                           ((uint32_t)nonce[i*4+1] <<  8) |
-                           ((uint32_t)nonce[i*4+2] << 16) |
-                           ((uint32_t)nonce[i*4+3] << 24);
-    }
-
-    ctx->pos = 64;  // Force generation of first block
-}
-
-void chacha20_crypt(ChaCha20Ctx *ctx, uint8_t *data, size_t len) {
-    for (size_t i = 0; i < len; i++) {
-        if (ctx->pos == 64) {
-            // Generate new keystream block
-            uint32_t block[16];
-            chacha20_block(block, ctx->state);
-            memcpy(ctx->keystream, block, 64);
-            ctx->state[12]++;  // Increment counter
-            ctx->pos = 0;
-        }
-        data[i] ^= ctx->keystream[ctx->pos++];
-    }
-}
-
-// ChaCha20-Poly1305 in Rust (chacha20poly1305 crate)
-
-use chacha20poly1305::{
-    aead::{Aead, AeadCore, KeyInit},
-    ChaCha20Poly1305, Nonce, Key
-};
-use rand_core::OsRng;
-
-pub struct ChaChaCipher {
-    cipher: ChaCha20Poly1305,
-}
-
-impl ChaChaCipher {
-    pub fn new(key: &[u8; 32]) -> Self {
-        let cipher = ChaCha20Poly1305::new(Key::from_slice(key));
-        Self { cipher }
-    }
-
-    pub fn encrypt(&self, nonce: &[u8; 12], data: &[u8]) -> Vec<u8> {
-        let nonce = Nonce::from_slice(nonce);
-        self.cipher.encrypt(nonce, data).expect("encryption failure")
-    }
-
-    pub fn decrypt(&self, nonce: &[u8; 12], ciphertext: &[u8]) -> Vec<u8> {
-        let nonce = Nonce::from_slice(nonce);
-        self.cipher.decrypt(nonce, ciphertext).expect("decryption failure")
-    }
-
-    // Generate random nonce
-    pub fn random_nonce() -> [u8; 12] {
-        let nonce = ChaCha20Poly1305::generate_nonce(&mut OsRng);
-        nonce.into()
-    }
-
-    // Generate random key
-    pub fn random_key() -> [u8; 32] {
-        let key = ChaCha20Poly1305::generate_key(&mut OsRng);
-        key.into()
-    }
-}
-```
-
-> **Why did ChaCha20-Poly1305 become the preferred algorithm in modern ransomware?** The reason is not purely technical — it is operational. Hardware-accelerated AES (AES-NI) is faster on Intel/AMD CPUs with native support. The problem: the most valuable ransomware targets in 2022-2026 are VMware ESXi and Linux virtualization servers, where AES-NI is frequently disabled or not exposed to the guest VM. Under those conditions, AES-CTR drops to ~300 MB/s (pure software) while ChaCha20 maintains ~800-1000 MB/s because its design (ADD-ROTATE-XOR over 32-bit registers) is efficient on any CPU without specialized instructions. The Poly1305 layer provides integrated authentication (AEAD): if a single ciphertext bit is modified (honeypot, EDR altering data in flight), the MAC fails and decryption aborts — tampering protection that pure AES-CBC lacks. BlackCat/ALPHV and Akira adopted ChaCha20 specifically to maximize speed on virtualization targets.
-
-
-## 2.3 RSA — Asymmetric Cryptography
-
-### RSA-OAEP (for encrypting symmetric keys)
-
-```
-// RSA-OAEP with Windows CNG
-
-// Encrypt up to 190 bytes (RSA-2048 with OAEP-SHA256)
-DWORD RSA_OAEP_Encrypt(PBYTE publicKeyBlob, DWORD publicKeyBlobLen,
-                        const BYTE *plaintext, DWORD plaintextLen,
-                        PBYTE ciphertext, DWORD ciphertextBufLen) {
-    BCRYPT_ALG_HANDLE hAlg = NULL;
-    BCRYPT_KEY_HANDLE hKey = NULL;
-    NTSTATUS status;
-    DWORD cbCiphertext = 0;
-
-    BCryptOpenAlgorithmProvider(&hAlg, BCRYPT_RSA_ALGORITHM, NULL, 0);
-
-    // Import public key from blob
-    status = BCryptImportKeyPair(hAlg, NULL, BCRYPT_RSAPUBLIC_BLOB,
-        &hKey, publicKeyBlob, publicKeyBlobLen, 0);
-    if (!BCRYPT_SUCCESS(status)) goto cleanup;
-
-    // OAEP with SHA-256
-    BCRYPT_OAEP_PADDING_INFO paddingInfo = {
-        .pszAlgId = BCRYPT_SHA256_ALGORITHM,
-        .pbLabel = NULL,
-        .cbLabel = 0
-    };
-
-    status = BCryptEncrypt(hKey,
-        (PBYTE)plaintext, plaintextLen,
-        &paddingInfo,
-        NULL, 0,  // No IV for RSA
-        ciphertext, ciphertextBufLen,
-        &cbCiphertext,
-        BCRYPT_PAD_OAEP);
-
-cleanup:
-    if (hKey) BCryptDestroyKey(hKey);
-    if (hAlg) BCryptCloseAlgorithmProvider(hAlg, 0);
-    return BCRYPT_SUCCESS(status) ? cbCiphertext : 0;
-}
-
-// Export public key to BCrypt blob from PEM
-// (to import the attacker's key embedded in the binary)
-// Format: BCRYPT_RSAKEY_BLOB + exponent + modulus
-
-typedef struct {
-    BCRYPT_RSAKEY_BLOB header;
-    BYTE publicExponent[3];  // 0x01 0x00 0x01 = 65537
-    BYTE modulus[256];       // 2048 bits
-} RSA2048_PUBLIC_BLOB;
-
-// RSA-OAEP in Rust (rsa crate)
-
-use rsa::{RsaPublicKey, RsaPrivateKey, Oaep, pkcs8::DecodePublicKey};
-use sha2::Sha256;
-use rand::rngs::OsRng;
-
-pub fn rsa_encrypt_key(public_key_pem: &str, data: &[u8]) -> Vec<u8> {
-    let public_key = RsaPublicKey::from_public_key_pem(public_key_pem)
-        .expect("Invalid PEM");
-
-    let mut rng = OsRng;
-    let padding = Oaep::new::<Sha256>();
-
-    public_key.encrypt(&mut rng, padding, data)
-        .expect("RSA encryption failed")
-}
-
-pub fn rsa_decrypt_key(private_key_pem: &str, ciphertext: &[u8]) -> Vec<u8> {
-    use rsa::pkcs8::DecodePrivateKey;
-    let private_key = RsaPrivateKey::from_pkcs8_pem(private_key_pem)
-        .expect("Invalid PEM");
-
-    let padding = Oaep::new::<Sha256>();
-    private_key.decrypt(padding, ciphertext)
-        .expect("RSA decryption failed")
-}
-
-// Generate RSA-2048 keypair
-pub fn generate_rsa_keypair() -> (String, String) {
-    let mut rng = OsRng;
-    let private_key = RsaPrivateKey::new(&mut rng, 2048)
-        .expect("Failed to generate key");
-    let public_key = RsaPublicKey::from(&private_key);
-
-    use rsa::pkcs8::{EncodePrivateKey, EncodePublicKey};
-    let priv_pem = private_key.to_pkcs8_pem(rsa::pkcs8::LineEnding::LF)
-        .unwrap().to_string();
-    let pub_pem = public_key.to_public_key_pem(rsa::pkcs8::LineEnding::LF)
-        .unwrap();
-
-    (priv_pem, pub_pem)
-}
-```
-
-> **Why RSA-OAEP and not RSA-PKCS1v1.5 for encrypting symmetric keys?** PKCS#1 v1.5 is vulnerable to the "Bleichenbacher attack" (1998): an oracle that responds differently to "invalid padding" versus "other errors" allows an attacker to recover the encrypted plaintext without the private key, given enough attempts (~1 million queries). In a system where the decryptor gives feedback about whether the key was decrypted correctly, PKCS1v1.5 would be exploitable. OAEP (Optimal Asymmetric Encryption Padding) uses randomization and hashing to eliminate this structural vulnerability. For ransomware, the choice has additional implications: the decryptor delivered to the victim should not reveal whether a decryption attempt failed due to a "wrong key" or "invalid padding" — a unified "decryption failed" response blocks the oracle. The practical limit of RSA-2048 with OAEP-SHA256 is ~190 bytes of plaintext, sufficient to protect a 32-byte AES key but not for direct data encryption.
-
-
-## 2.4 ECDH + X25519/P-256 Curve (State of the Art)
-
-### Why ECDH instead of RSA
-
-| RSA-2048 | ECDH-P256 |
-| - | - |
-| 2048-bit key | 256-bit key |
-| Slow keygen | Very fast |
-| Large overhead | Small |
-| Well-studied | Equally secure |
-
-Modern ransomware (BlackCat, Akira) uses ECDH.
-
-### Multi-Master Pattern (MMP) — How they use it
-
-```
-SETUP (Builder, attacker):
-  master_priv, master_pub = ECDH_keygen()
-  # master_priv → attacker's C2
-  # master_pub  → embedded in the ransomware binary
-
-RUNTIME (Locker, on victim):
-  For each file:
-    file_priv, file_pub = ECDH_keygen()  # Ephemeral pair per file
-    shared_secret = ECDH(file_priv, master_pub)  # ECDH with master
-    file_key = KDF(shared_secret)         # Derive AES key
-    encrypt(file, file_key)
-    write_footer(file_pub)                # Store the file's public key
-    # file_priv → DESTROY immediately
-
-DECRYPTION (Attacker):
-  For each file:
-    file_pub = read_footer(file)
-    shared_secret = ECDH(master_priv, file_pub)  # Only the attacker can do this
-    file_key = KDF(shared_secret)
-    decrypt(file, file_key)
-
-// ECDH with Windows CNG (P-256)
-
-#include <bcrypt.h>
-
-// phAlg is returned to the caller: call BCryptCloseAlgorithmProvider(*phAlg, 0)
-// AFTER BCryptDestroyKey(*phKey) to avoid closing the provider while the key is still in use.
-BOOL ECDH_GenerateKeyPair(BCRYPT_ALG_HANDLE *phAlg,
-                           BCRYPT_KEY_HANDLE *phKey,
-                           PBYTE *ppubKeyBlob, DWORD *pcbPubKey) {
-    NTSTATUS status;
-    *phAlg       = NULL;
-    *phKey       = NULL;
-    *ppubKeyBlob = NULL;
-
-    status = BCryptOpenAlgorithmProvider(phAlg, BCRYPT_ECDH_P256_ALGORITHM, NULL, 0);
-    if (!BCRYPT_SUCCESS(status)) return FALSE;
-
-    status = BCryptGenerateKeyPair(*phAlg, phKey, 256, 0);
-    if (!BCRYPT_SUCCESS(status)) goto fail;
-
-    status = BCryptFinalizeKeyPair(*phKey, 0);
-    if (!BCRYPT_SUCCESS(status)) goto fail;
-
-    // Export public key
-    status = BCryptExportKey(*phKey, NULL, BCRYPT_ECCPUBLIC_BLOB,
-        NULL, 0, pcbPubKey, 0);
-    if (!BCRYPT_SUCCESS(status)) goto fail;
-
-    *ppubKeyBlob = (PBYTE)HeapAlloc(GetProcessHeap(), 0, *pcbPubKey);
-    if (!*ppubKeyBlob) goto fail;
-
-    status = BCryptExportKey(*phKey, NULL, BCRYPT_ECCPUBLIC_BLOB,
-        *ppubKeyBlob, *pcbPubKey, pcbPubKey, 0);
-    if (!BCRYPT_SUCCESS(status)) {
-        HeapFree(GetProcessHeap(), 0, *ppubKeyBlob);
-        *ppubKeyBlob = NULL;
-        goto fail;
-    }
-
-    return TRUE;  // hAlg remains open — caller is responsible for closing it
-
-fail:
-    if (*phKey) { BCryptDestroyKey(*phKey); *phKey = NULL; }
-    if (*phAlg) { BCryptCloseAlgorithmProvider(*phAlg, 0); *phAlg = NULL; }
-    return FALSE;
-}
-
-// Compute ECDH shared secret
-BOOL ECDH_ComputeShared(BCRYPT_KEY_HANDLE hMyPrivKey,
-                         PBYTE peerPubKeyBlob, DWORD peerPubKeyBlobLen,
-                         PBYTE *ppSharedSecret, DWORD *pcbSharedSecret) {
-    BCRYPT_ALG_HANDLE    hAlg     = NULL;
-    BCRYPT_KEY_HANDLE    hPeerKey = NULL;
-    BCRYPT_SECRET_HANDLE hSecret  = NULL;
-    NTSTATUS status;
-    BOOL success = FALSE;
-
-    *ppSharedSecret  = NULL;
-    *pcbSharedSecret = 0;
-
-    status = BCryptOpenAlgorithmProvider(&hAlg, BCRYPT_ECDH_P256_ALGORITHM, NULL, 0);
-    if (!BCRYPT_SUCCESS(status)) goto cleanup;
-
-    // Import peer's public key
-    status = BCryptImportKeyPair(hAlg, NULL, BCRYPT_ECCPUBLIC_BLOB,
-        &hPeerKey, peerPubKeyBlob, peerPubKeyBlobLen, 0);
-    if (!BCRYPT_SUCCESS(status)) goto cleanup;
-
-    // Compute shared secret
-    status = BCryptSecretAgreement(hMyPrivKey, hPeerKey, &hSecret, 0);
-    if (!BCRYPT_SUCCESS(status)) goto cleanup;
-
-    // Derive key material with SHA-256 (32 bytes).
-    // Without specifying the hash, BCrypt defaults to SHA-1 → only 20 bytes,
-    // which is insufficient for an AES-256 key.
-    BCryptBuffer kdfBuffer = {
-        sizeof(BCRYPT_SHA256_ALGORITHM),
-        KDF_HASH_ALGORITHM,
-        (PVOID)BCRYPT_SHA256_ALGORITHM
-    };
-    BCryptBufferDesc kdfParams = { BCRYPTBUFFER_VERSION, 1, &kdfBuffer };
-
-    status = BCryptDeriveKey(hSecret, BCRYPT_KDF_HASH, &kdfParams,
-        NULL, 0, pcbSharedSecret, 0);
-    if (!BCRYPT_SUCCESS(status)) goto cleanup;
-
-    *ppSharedSecret = (PBYTE)HeapAlloc(GetProcessHeap(), 0, *pcbSharedSecret);
-    if (!*ppSharedSecret) goto cleanup;
-
-    status = BCryptDeriveKey(hSecret, BCRYPT_KDF_HASH, &kdfParams,
-        *ppSharedSecret, *pcbSharedSecret, pcbSharedSecret, 0);
-    if (!BCRYPT_SUCCESS(status)) {
-        HeapFree(GetProcessHeap(), 0, *ppSharedSecret);
-        *ppSharedSecret = NULL;
-        goto cleanup;
-    }
-
-    success = TRUE;
-
-cleanup:
-    if (hSecret)  BCryptDestroySecret(hSecret);
-    if (hPeerKey) BCryptDestroyKey(hPeerKey);
-    if (hAlg)     BCryptCloseAlgorithmProvider(hAlg, 0);
-    return success;
-}
-
-// X25519 ECDH in Rust (faster than P-256)
-
-// Cargo.toml requires: x25519-dalek = { version = "2", features = ["static_secrets"] }
-use x25519_dalek::{PublicKey, StaticSecret};
-use rand_core::OsRng;
-use sha2::{Sha256, Digest};
-
-pub struct ECDHKeyPair {
-    secret: StaticSecret,
-    pub public: PublicKey,
-}
-
-impl ECDHKeyPair {
-    pub fn generate() -> Self {
-        let secret = StaticSecret::random_from_rng(OsRng);
-        let public = PublicKey::from(&secret);
-        Self { secret, public }
-    }
-
-    // Computed shared secret + KDF → AES key
-    pub fn derive_file_key(&self, peer_public: &[u8; 32]) -> [u8; 32] {
-        let peer_pub = PublicKey::from(*peer_public);
-        let shared = self.secret.diffie_hellman(&peer_pub);
-
-        // KDF: SHA-256 of the shared secret
-        let mut hasher = Sha256::new();
-        hasher.update(shared.as_bytes());
-        let result = hasher.finalize();
-
-        let mut key = [0u8; 32];
-        key.copy_from_slice(&result);
-        key
-    }
-
-    pub fn public_bytes(&self) -> [u8; 32] {
-        *self.public.as_bytes()
-    }
-}
-
-// Usage example in the locker:
-// File footer layout: [ephemeral_pub (32 bytes)] [nonce (12 bytes)]
-pub fn encrypt_file_ecdh(
-    master_public_bytes: &[u8; 32],  // Embedded in binary
-    file_data: &[u8]
-) -> (Vec<u8>, [u8; 32], [u8; 12]) {  // (ciphertext, ephemeral_pub, nonce)
-
-    // Generate ephemeral pair for this file
-    let ephemeral = ECDHKeyPair::generate();
-
-    // Derive AES key from shared secret
-    let file_key = ephemeral.derive_file_key(master_public_bytes);
-    let nonce = ChaChaCipher::random_nonce();
-
-    let cipher = ChaChaCipher::new(&file_key);
-    let ciphertext = cipher.encrypt(&nonce, file_data);
-
-    // Both the ephemeral public key AND the nonce must go into the file footer.
-    // Without the nonce, decryption is impossible even with master_priv.
-    (ciphertext, ephemeral.public_bytes(), nonce)
-}
-```
-
-> **Why the Multi-Master Pattern (MMP) with a per-file ephemeral ECDH keypair instead of a single ECDH key per session?** A single session key design creates a critical vulnerability: if the analyst or victim can extract the session key by any means (memory dump, reverse engineering the C2 handshake), all files in that session are recoverable. With MMP and per-file ephemeral keypairs, compromising a single file's key affects only that file. Additionally, MMP requires no C2 communication during encryption — the locker generates an ephemeral pair locally, computes the shared secret with the embedded `master_pub`, derives the `file_key`, encrypts, destroys the ephemeral private key, and stores only the public key in the footer. All of this without a single byte sent to any server during the operation. This is critical for air-gapped operations and for generating no detectable network traffic during encryption. The cost: the footer must contain 32–72 bytes of public key per file, and the attacker needs their `master_priv` to decrypt — if that key is lost, no one can ever decrypt.
-
-
-## 2.5 HKDF — Key Derivation Function
-
-When you have an ECDH shared secret, you need to derive cryptographically sound keys from it.
-
-```
-// HKDF-SHA256 (extract + expand)
-
-#include <bcrypt.h>
-#include <string.h>
-
-// HMAC-SHA256
-void HMAC_SHA256(const BYTE *key, DWORD keyLen,
-                  const BYTE *data, DWORD dataLen,
-                  BYTE output[32]) {
-    BCRYPT_ALG_HANDLE hAlg;
-    BCRYPT_HASH_HANDLE hHash;
-    DWORD cbHash = 0, cbResult = 0;
-
-    BCryptOpenAlgorithmProvider(&hAlg, BCRYPT_SHA256_ALGORITHM,
-        NULL, BCRYPT_ALG_HANDLE_HMAC_FLAG);
-
-    DWORD cbHashObj;
-    BCryptGetProperty(hAlg, BCRYPT_OBJECT_LENGTH,
-        (PBYTE)&cbHashObj, sizeof(DWORD), &cbResult, 0);
-    PBYTE pbHashObj = (PBYTE)HeapAlloc(GetProcessHeap(), 0, cbHashObj);
-
-    BCryptCreateHash(hAlg, &hHash, pbHashObj, cbHashObj,
-        (PBYTE)key, keyLen, 0);
-    BCryptHashData(hHash, (PBYTE)data, dataLen, 0);
-    BCryptFinishHash(hHash, output, 32, 0);
-
-    BCryptDestroyHash(hHash);
-    BCryptCloseAlgorithmProvider(hAlg, 0);
-    HeapFree(GetProcessHeap(), 0, pbHashObj);
-}
-
-// HKDF-Extract: PRK = HMAC-SHA256(salt, IKM)
-void HKDF_Extract(const BYTE *salt, DWORD saltLen,
-                   const BYTE *ikm, DWORD ikmLen,
-                   BYTE prk[32]) {
-    BYTE defaultSalt[32] = {0};  // If no salt, use zeros
-    if (!salt || saltLen == 0) {
-        salt = defaultSalt;
-        saltLen = 32;
-    }
-    HMAC_SHA256(salt, saltLen, ikm, ikmLen, prk);
-}
-
-// HKDF-Expand: OKM = T(1) || T(2) || ...
-void HKDF_Expand(const BYTE prk[32], const BYTE *info, DWORD infoLen,
-                  BYTE *okm, DWORD okmLen) {
-    BYTE t[32] = {0};
-    DWORD pos = 0;
-    BYTE counter = 1;
-
-    while (pos < okmLen) {
-        // Input = T(i-1) || info || counter
-        BYTE hmac_input[32 + 256 + 1];
-        DWORD hmac_input_len = 0;
-        if (counter > 1) {
-            memcpy(hmac_input, t, 32);
-            hmac_input_len = 32;
-        }
-        memcpy(hmac_input + hmac_input_len, info, infoLen);
-        hmac_input_len += infoLen;
-        hmac_input[hmac_input_len++] = counter;
-
-        HMAC_SHA256(prk, 32, hmac_input, hmac_input_len, t);
-
-        DWORD copy = min(32, okmLen - pos);
-        memcpy(okm + pos, t, copy);
-        pos += copy;
-        counter++;
-    }
-}
-
-// Usage: derive AES key and IV from ECDH shared secret
-void DeriveKeys(const BYTE *sharedSecret, DWORD secretLen,
-                 BYTE aesKey[32], BYTE aesIV[16]) {
-    BYTE prk[32];
-    BYTE okm[48];  // 32 (key) + 16 (IV) = 48 bytes
-
-    HKDF_Extract(NULL, 0, sharedSecret, secretLen, prk);
-    HKDF_Expand(prk, (BYTE*)"ransomware-key", 14, okm, 48);
-
-    memcpy(aesKey, okm, 32);
-    memcpy(aesIV, okm + 32, 16);
-}
-```
-
-> **Why can't the ECDH shared secret be used directly as an AES key?** The ECDH output is the X-coordinate of an elliptic curve point — a number with specific mathematical structure, not a uniformly random bit string. Some problematic properties: the low-order bits may have statistical bias depending on the curve; the size is fixed (32 bytes for P-256/X25519) but may need to expand into more key material (AES key + IV + MAC key); and using the same input in different contexts (encryption, authentication) creates related-key attack risks. HKDF (RFC 5869) resolves all of this in two steps: Extract (HMAC of the IKM with a salt, produces a PRK with uniform distribution) and Expand (arbitrary-length generation with context/info, allowing multiple independent keys to be derived from the same secret). In the footer context: `DeriveKeys(shared_secret)` produces 48 bytes — the first 32 are the AES key, the last 16 are the IV, both with statistical independence properties that the raw shared secret does not guarantee.
-
-
-## 2.6 Secure Random Generation (CSPRNG)
-
-A weak PRNG makes encryption keys predictable — regardless of how strong the cipher that uses them is.
-
-```
-// Correct: BCryptGenRandom (CSPRNG)
-
-BOOL GenerateRandomBytes(PBYTE buffer, DWORD length) {
-    return BCRYPT_SUCCESS(
-        BCryptGenRandom(NULL, buffer, length, BCRYPT_USE_SYSTEM_PREFERRED_RNG)
-    );
-}
-
-// Generate key and IV for a file
-void GenerateFileKeyIV(BYTE key[32], BYTE iv[16]) {
-    BCryptGenRandom(NULL, key, 32, BCRYPT_USE_SYSTEM_PREFERRED_RNG);
-    BCryptGenRandom(NULL, iv, 16, BCRYPT_USE_SYSTEM_PREFERRED_RNG);
-}
-
-// INCORRECT — never use in cryptographic production:
-// srand(time(NULL)); rand();  ← predictable, not cryptographically secure
-
-// Rust: OsRng is always a CSPRNG
-
-use rand::{RngCore, rngs::OsRng};
-
-pub fn random_bytes<const N: usize>() -> [u8; N] {
-    let mut buf = [0u8; N];
-    OsRng.fill_bytes(&mut buf);
-    buf
-}
-
-pub fn generate_key_iv() -> ([u8; 32], [u8; 12]) {
-    (random_bytes::<32>(), random_bytes::<12>())
-}
-```
-
-**Why is a weak PRNG so devastating and not just an "implementation detail"?** A classic error in amateur ransomware is seeding a non-cryptographic generator (`rand()`, `Math.random()`, etc.) with a predictable source such as the infection timestamp. The cascade problem: (1) the process timestamp can be extracted from the file system (creation time of the `.exe`, timestamps of the encrypted files); (2) with an estimated infection time window, an analyst can brute-force the seed by trying each possible second — with a 24-hour window, only ~86,400 values; (3) the cryptanalysis does not need to break AES-256 (computationally impossible) but rather the weak generator that produced the keys.
-
-A real-world example of this class of failure is **Petya (2016)**, whose key generation algorithm was so flawed that it allowed an analyst to predict half of the keystream — researcher @leostone built a genetic algorithm capable of recovering the decryption key in as little as ~7 seconds, without attacking AES or the attacker's private key.
-
-`BCryptGenRandom` with `BCRYPT_USE_SYSTEM_PREFERRED_RNG` uses the default Windows CNG CSPRNG — an **AES-based CTR_DRBG compliant with NIST SP800-90**, seeded with real system entropy — the only appropriate source for cryptographic use. The difference in code: 2 lines. The impact: the difference between "unrecoverable without C2" and "full recovery without paying."
-
-
-## 2.7 Speed Comparison (Real Benchmarks)
-
-For a 1 GB file on modern hardware (i7-12700, AES-NI enabled):
-
-| Algorithm | Speed | Notes |
-| - | - | - |
-| AES-256-CTR (AES-NI) | ~2.5 GB/s | Fastest with hardware support |
-| AES-256-CBC (AES-NI) | ~2.0 GB/s | Padding overhead |
-| ChaCha20-Poly1305 | ~1.8 GB/s | Without AES-NI: equally fast or faster |
-| AES-256-CTR (no AES-NI) | ~300 MB/s | Very slow in VMs without AES-NI |
-
-Conclusion: if the ransomware must run on varied hardware (including VMs without AES-NI), ChaCha20-Poly1305 offers more consistent performance. If the target is modern Windows endpoints with recent CPUs, AES-256-CTR with AES-NI remains the fastest option.
-
-
-## Module 02 Summary
-
-| Algorithm | Use | Windows API |
-| - | - | - |
-| AES-256-CBC | Encrypt files (legacy) | BCrypt CBC |
-| AES-256-CTR | Encrypt files (no padding) | Manual (ECB block-by-block + counter, CNG has no native CTR) |
-| ChaCha20-Poly1305 | Encrypt files (modern) | Manual or Rust crate |
-| RSA-2048-OAEP | Encrypt symmetric keys | BCrypt RSA |
-| ECDH-P256/X25519 | Ephemeral public key scheme | BCrypt ECDH / crate |
-| HKDF-SHA256 | Derive keys from ECDH | BCrypt native (`BCryptKeyDerivation` + `BCRYPT_KDF_HKDF`, Windows 8+) |
-| BCryptGenRandom | CSPRNG | BCrypt |
 
+# Module 02 — Cryptographic algorithms
+
+This module examines cryptographic components that may appear in a ransomware incident. Its purpose is to identify the role of each component, the data an analyst needs to reconstruct a scheme, and the conclusions that a particular sample can support. **An algorithm does not define an entire family:** different versions, platforms, and configurations may use different constructions.
+
+The examples distinguish a **primitive** (AES, ChaCha20, RSA, or an ECDH operation), a **mode or construction** (CBC, CTR, ChaCha20-Poly1305, RSA-OAEP), and a **protocol** (how keys and parameters are generated, derived, stored, and recovered). A sound primitive within an incomplete protocol can leave files unrecoverable or information exposed.
+
+The reference specifications include [NIST SP 800-38A](https://csrc.nist.gov/pubs/sp/800/38/a/final), [RFC 8439](https://www.rfc-editor.org/rfc/rfc8439.html), [RFC 8017](https://www.rfc-editor.org/rfc/rfc8017.html), [RFC 7748](https://www.rfc-editor.org/rfc/rfc7748.html), and [RFC 5869](https://www.rfc-editor.org/rfc/rfc5869.html). Analyses of real ransomware families are cited alongside the observations they support.
+
+## 2.1 Symmetric cryptography — AES
+
+AES is a block cipher with a **128-bit block size**. AES-256 means that its key is **256 bits** long, not that its blocks are 256 bits long. Processing data of varying lengths requires a mode of operation. CBC and CTR address that requirement in different ways; on their own they provide confidentiality, **not authentication**. [NIST, FIPS 197](https://csrc.nist.gov/pubs/fips/197/final) · [NIST SP 800-38A](https://csrc.nist.gov/pubs/sp/800/38/a/final).
+
+| Property | AES-256-CBC | AES-256-CTR |
+| --- | --- | --- |
+| Unit processed by AES | 16-byte data blocks | 16-byte counter blocks that produce a stream to combine with the data |
+| Data length | The final block must be padded, for example with PKCS#7 | Arbitrary lengths can be processed without padding |
+| Initial parameter | 16-byte IV | Initial counter block and an increment rule; the format must be defined |
+| Critical condition when reusing a key | The IV must satisfy the mode's requirements, including unpredictability for CBC | No counter block may be repeated under the same key |
+| Integrity | Not built in | Not built in |
+| Decryption | Requires the original key and IV and correct handling of padding | Applies the stream generated from the same key and counter blocks again |
+
+### AES-256-CBC
+
+CBC combines each plaintext block with the preceding ciphertext block before applying AES. The first block uses the IV. A suitable IV therefore prevents two messages with the same opening and key from necessarily producing the same first ciphertext block. The IV **is not a secret key**: it is retained with the data needed for decryption. Its value must come from a cryptographic generator and meet the mode's requirements. [NIST SP 800-38A](https://csrc.nist.gov/pubs/sp/800/38/a/final).
+
+With PKCS#7, even a message whose length is already a multiple of 16 receives a full block of padding. The increase per file is **1 to 16 bytes**, before any application header or metadata. An implementation can work in chunks and finish the padding at the end: **CBC does not require loading the entire file into memory** or knowing the final size at the start of every operation.
+
+The limitation that matters most in analysis is the lack of authentication. Decryption that produces bytes and accepts the padding does not prove that the contents are authentic. Differences between padding errors and other processing errors should not be exposed to an outside party. When examining a sample that uses CBC, the analyst should also determine whether it has a separate integrity mechanism and how that mechanism is verified.
+
+**Reading a Windows CNG example:** to interpret a call to `BCryptEncrypt`, inspect the AES algorithm, the mode set through `BCRYPT_CHAINING_MODE`, key length, IV, `BCRYPT_BLOCK_PADDING` setting, queried output size, and return status. The API may modify the IV buffer while chaining; the original IV must be retained if another process needs to repeat the operation. Seeing `BCRYPT_AES_ALGORITHM` alone does not establish that the implementation is correct. [Microsoft: `BCryptEncrypt`](https://learn.microsoft.com/en-us/windows/win32/api/bcrypt/nf-bcrypt-bcryptencrypt).
+
+**Checks with test data:** lengths of zero, 15, 16, and 17 bytes; a round trip using the same original IV; rejection of an undersized output buffer; and handling of truncated or altered ciphertext. An unexpected result calls for inspection of both the padding and API status rather than an immediate assumption that the key is wrong.
+
+### AES-CTR
+
+CTR encrypts counter blocks with AES and combines the resulting stream with the data. The same procedure therefore transforms plaintext into ciphertext and ciphertext back into plaintext without padding. Its essential requirement is that **no counter block be repeated under the same key**, either within a message or across messages. Reusing the stream exposes relationships between plaintexts. CTR also does not detect changes to ciphertext. [NIST SP 800-38A](https://csrc.nist.gov/pubs/sp/800/38/a/final).
+
+The expression “12-byte nonce + 4-byte counter” describes **one possible format**, not the universal definition of AES-CTR. Each protocol must specify field sizes, byte order, initial value, block limit, and how the initial counter block is retained. RFC 3686 defines an IPsec construction with its own fields; citing its initial counter without adopting the rest of its format can be misleading. [RFC 3686](https://www.rfc-editor.org/rfc/rfc3686.html).
+
+An analyst may see AES in ECB mode used in CNG **solely to obtain the AES output for a counter block**. That observation does not mean the data itself is encrypted in ECB: the analyst must trace the composition of the counter and how its output is combined with the data. Before calling that code “CTR,” check exact field lengths, uniqueness of the initial block, detection of counter overflow, and any integrity protection. A manual composition has more opportunities for error than a construction provided by a reviewed library.
+
+**Comparison with CBC:** CTR accepts arbitrary data lengths; CBC needs special treatment of the final block. This difference does not establish a fixed speed. Performance depends on processor instructions, the library, parallelism, chunk size, and the cost of reading and writing data.
+
+## 2.2 ChaCha20 and ChaCha20-Poly1305
+
+ChaCha20 is a stream cipher. Its IETF variant uses a **32-byte key**, a **12-byte nonce**, and a 32-bit block counter. Its output is combined with data to encrypt or decrypt it. **ChaCha20 alone does not authenticate the data.** RFC 8439 specifies little-endian word order and a finite counter space; converting integer words to bytes without defining that order is not portable. [RFC 8439, Sections 2.3 and 2.4](https://www.rfc-editor.org/rfc/rfc8439.html).
+
+ChaCha20-Poly1305 adds authentication: it produces ciphertext and a **16-byte tag** and can authenticate associated data (AAD) without encrypting it. In the RFC 8439 construction, one ChaCha20 block generates a one-time Poly1305 key; the stream used for the data begins at the counter value specified by the standard. Decryption must verify the tag and reject a modified message. Code that only implements the *quarter round* and combines bytes with a stream **does not implement ChaCha20-Poly1305**. [RFC 8439, Section 2.8](https://www.rfc-editor.org/rfc/rfc8439.html).
+
+| Element | ChaCha20 | ChaCha20-Poly1305 |
+| --- | --- | --- |
+| Confidentiality | Yes, when the key and nonce are used correctly | Yes |
+| Authentication | No | Yes, through a Poly1305 tag |
+| Ciphertext size | Same as the plaintext | Same as the plaintext, plus the tag if stored together |
+| Associated data | Not part of the primitive | Can be authenticated without being encrypted |
+| Repeated key and nonce | Repeats the stream | Repeats both the stream and the authenticator's one-time key |
+
+The nonce must be **unique for every operation under a given key**. Its generation and tracking belong to the protocol, not to an isolated encryption call. A random 96-bit nonce can be evaluated for a bounded number of uses, but saying only “generate one at random” leaves out how many messages share a key and how collisions are avoided. If each file has a different key, that assumption must be stated explicitly. [RFC 8439, security considerations](https://www.rfc-editor.org/rfc/rfc8439.html).
+
+**Reading a Rust example using the `chacha20poly1305` library:** its `encrypt` operation returns encrypted bytes and a tag according to the library's interface; `decrypt` checks the tag and reports failure if it does not match. To interpret a sample or lab format, document the key, nonce, any AAD, field order, and where the tag is stored. A footer listing only “public key + nonce” would be incomplete if the ciphertext did not include the tag elsewhere. [`chacha20poly1305` documentation](https://docs.rs/chacha20poly1305/latest/chacha20poly1305/).
+
+**What has been observed:** SentinelLabs documented BlackCat/ALPHV configurations supporting **AES and ChaCha20**; another analysis described a choice related to the availability of AES acceleration on the platform examined. That does not prove all BlackCat variants use ChaCha20-Poly1305, nor does it justify attributing the same design rationale to Akira. An Akira analysis documents ChaCha20 and RSA protection of keys in certain samples; ChaCha20 must be distinguished from the full authenticated construction. [SentinelLabs: BlackCat](https://www.sentinelone.com/labs/blackcat-ransomware-highly-configurable-rust-driven-raas-on-the-prowl-for-victims/) · [SentinelLabs: observed selection](https://www.sentinelone.com/labs/crimeware-trends-ransomware-developers-turn-to-intermittent-encryption-to-evade-detection/) · [Trend Micro: Akira](https://www.trendaisecurity.com/en-us/resources-insights/deep-research/ransomware-spotlight-akira).
+
+ChaCha20 can perform well without AES acceleration. Its actual advantage over AES depends on the CPU, whether the instructions are available in the virtualized environment, the library, and the workload. The presence of VMware ESXi or Linux **does not establish** that AES-NI is disabled, and no single GB/s figure represents all these configurations.
+
+## 2.3 RSA — public-key cryptography
+
+RSA-OAEP encrypts a short value with a public key so that the holder of the corresponding private key can recover it under the chosen protocol. It does not efficiently process large files on its own. The public key, its size, the OAEP hash algorithm, and any optional label are parameters that must match on both sides.
+
+For RSAES-OAEP, RFC 8017 sets the limit at `mLen ≤ k − 2hLen − 2`. With a 2048-bit RSA key (`k = 256` bytes) and SHA-256 (`hLen = 32` bytes), the maximum is **190 plaintext bytes per operation**. A 32-byte symmetric key fits within that limit. The corresponding RSA output is 256 bytes before any additional metadata. These figures apply to this example, not to every key size, hash, or padding scheme. [RFC 8017, Section 7.1.1](https://www.rfc-editor.org/rfc/rfc8017.html#section-7.1.1).
+
+| Observed element | Question for the analyst |
+| --- | --- |
+| Public key or CNG blob | Are its size, exponent, modulus, and representation known? |
+| OAEP parameters | Which hash and label does each side use? |
+| RSA output | Does it protect a data key, a session secret, or another short value? |
+| Associated metadata | How is the key or entry to which it belongs identified? |
+| Private side | Is there evidence of where the private key is held, or is only the public side visible? |
+
+A `BCRYPT_RSAKEY_BLOB` structure followed by an exponent and modulus **is not a PEM-to-CNG-blob conversion**: such a conversion would require parsing the input format, validating lengths, and building the representation required by the API. A structure declaration is therefore a **format description**, not an import function.
+
+PKCS#1 v1.5 and OAEP are distinct schemes. Bleichenbacher-type attacks exploit a padding-validity oracle under specific conditions; it would be wrong to claim that every use of PKCS#1 v1.5 always reveals the plaintext, or that OAEP rules out every implementation flaw. Errors, response times, and subsequent checks are part of what must be assessed in a recovery program. [RFC 8017](https://www.rfc-editor.org/rfc/rfc8017.html).
+
+**Security strength:** the bit length of an RSA key is not directly comparable to that of an elliptic-curve key. NIST estimates approximately **112 bits** of security strength for RSA-2048 and **128 bits** for 256-bit ECC; this is more informative than saying “2048 versus 256, equally secure.” [NIST SP 800-57, Part 1](https://csrc.nist.gov/pubs/sp/800/57/pt1/r5/final).
+
+## 2.4 ECDH — X25519 and P-256
+
+ECDH is a **secret agreement**, not an operation that directly encrypts files or keys. Each side combines its private key with the other side's public key. If the corresponding pairs and the same curve are used, both sides obtain a shared secret from which working key material can be derived. X25519 and ECDH using P-256 have different formats and interfaces; a public key for one curve cannot automatically be interpreted as a key for the other. [RFC 7748](https://www.rfc-editor.org/rfc/rfc7748.html) · [Microsoft: Diffie-Hellman keys](https://learn.microsoft.com/en-us/windows/win32/seccrypto/diffie-hellman-keys).
+
+The ECDH output must feed a derivation specified from end to end. An application that applies SHA-256 to the secret in Rust and `BCRYPT_KDF_HASH` in Windows has not demonstrated compatibility: even if both outputs are 32 bytes long, **the functions may return different values**. `BCRYPT_KDF_HASH` is not another name for HKDF. When a sample uses a particular KDF, the analyst needs to reconstruct its inputs and compare its output against a known test value. [Microsoft: `BCryptDeriveKey`](https://learn.microsoft.com/en-us/windows/win32/api/bcrypt/nf-bcrypt-bcryptderivekey).
+
+With X25519, consider the case where a public value leads to an all-zero shared secret. RFC 7748 permits detecting that result and aborting; protocols that require the check must perform it. A private variable going out of scope is also insufficient evidence that its bytes have been wiped from memory: **the end of a variable's lifetime and verifiable erasure are different properties**. [RFC 7748, Section 6](https://www.rfc-editor.org/rfc/rfc7748.html#section-6).
+
+### Conceptual model with an ephemeral pair per entry
+
+In this course, **Multi-Master Pattern (MMP)** names the model examined below; the name does not establish that a real ransomware family implements precisely this protocol. Module 3 covers key generation and lifetime, and a later module examines the footer format.
+
+| Conceptual stage | Data or relationship to verify |
+| --- | --- |
+| Configuration | A persistent public key exists, and its curve and format are known |
+| Each entry | A different ephemeral pair is observed, or there is evidence of distinct derivation |
+| Agreement | The ephemeral private key and persistent public key produce the secret for that entry |
+| Derivation | The KDF, salt, context, and output length are identified |
+| Encryption | The symmetric algorithm, IV or nonce, any tag, and their relationship to the data are recorded |
+| Recovery | The other side needs its private key, the ephemeral public key, and all protocol parameters |
+
+An ephemeral public key can be stored in the footer without revealing the shared secret merely by being public. However, **storing that public key alone is insufficient** if the format also requires an IV, nonce, tag, identifiers, or derivation parameters. In CNG, an exported P-256 public key includes a header and coordinates; it is not the same length as a raw 32-byte X25519 public key. [Microsoft: `BCRYPT_ECCPUBLIC_BLOB`](https://learn.microsoft.com/en-us/windows/win32/api/bcrypt/nf-bcrypt-bcryptexportkey) · [RFC 7748](https://www.rfc-editor.org/rfc/rfc7748.html).
+
+Local agreement with an already available public key **can** take place without network traffic during that stage. This says nothing about whether the full intrusion involved communication: initial access, exfiltration, negotiation, or distribution of tools may occur at other times. Nor does it mean that only one entity can recover data in every circumstance; copies, implementation errors, material found during the incident, or seized keys change the assessment of a particular case.
+
+### Ephemeral pair per entry versus session secret
+
+A pair per entry separates the agreement material for different entries. A session secret can yield distinct keys through a KDF with unique contexts, but exposure of the base secret may compromise every value derived from it. The distinction depends on **which material is exposed and how long it exists**; a design's security cannot be established by counting key pairs without examining storage, derivation, authentication, and recovery.
+
+## 2.5 HKDF — deriving key material
+
+HKDF, defined in RFC 5869, has two stages: **Extract** takes the initial keying material (IKM) and a salt to obtain an intermediate pseudorandom key (PRK); **Expand** uses that PRK, context information (`info`), and a requested length to produce output keying material (OKM). The salt and `info` are not treated as secrets. When no salt is provided, RFC 5869 specifies a string of zero bytes equal in length to the hash output. [RFC 5869](https://www.rfc-editor.org/rfc/rfc5869.html).
+
+`PRK = HMAC-SHA-256(salt, IKM)`
+
+`T(1) = HMAC-SHA-256(PRK, info || 0x01)`
+
+`T(2) = HMAC-SHA-256(PRK, T(1) || info || 0x02)`
+
+The concatenated `T(i)` values are truncated to the requested length. With SHA-256, the RFC 5869 maximum is **255 × 32 = 8,160 bytes**. A manual implementation with a fixed-size array for `info` must check its length and every operation; a one-byte counter cannot be extended without limit, either. The [Appendix A test vectors](https://www.rfc-editor.org/rfc/rfc5869.html#appendix-A) provide independent results without relying on a ransomware sample.
+
+Deriving, for example, 32 bytes for a key and 16 for an IV makes sense only if **the entire protocol** specifies the curve, shared-secret representation, salt, `info`, lengths, relationship among entries, and IV-uniqueness conditions. Derivation alone does not ensure that the requirements of CBC, CTR, or ChaCha20-Poly1305 are met. Separate contexts can also be used for different functions; their names must match on both sides.
+
+Windows documentation distinguishes `BCRYPT_KDF_HASH` from `BCRYPT_KDF_HKDF`. For `BCryptDeriveKey` operating on an agreed secret, Microsoft states that HKDF support begins with **Windows 10**. The availability of a derivation API in an earlier version does not establish support for this particular HKDF option. [Microsoft: `BCryptDeriveKey`](https://learn.microsoft.com/en-us/windows/win32/api/bcrypt/nf-bcrypt-bcryptderivekey) · [Microsoft: `BCryptKeyDerivation`](https://learn.microsoft.com/en-us/windows/win32/api/bcrypt/nf-bcrypt-bcryptkeyderivation).
+
+**Verification exercise:** use the IKM, salt, `info`, and length from an RFC 5869 vector and compare the PRK and OKM byte for byte. If two libraries disagree, inspect encodings, lengths, and KDF selection before attributing the difference to ECDH.
+
+## 2.6 Cryptographically secure random generation (CSPRNG)
+
+The security of keys, IVs, and nonces depends on how they are obtained and on the rules of each mode. A general-purpose pseudorandom generator such as `rand()` or `Math.random()` is not a cryptographic source for key generation. A CBC IV must meet that mode's unpredictability requirement; CTR and ChaCha20-Poly1305 require, above all, that critical inputs not repeat under a given key.
+
+On Windows, Microsoft recommends `BCryptGenRandom` with `BCRYPT_USE_SYSTEM_PREFERRED_RNG`. Its status must be checked **before the bytes are used**. “System-preferred generator” does not prescribe one internal mechanism across all versions or imply that no other cryptographic API is appropriate. In Rust, an interface to the system generator must likewise handle availability and errors according to the library version in use. [Microsoft: `BCryptGenRandom`](https://learn.microsoft.com/en-us/windows/win32/api/bcrypt/nf-bcrypt-bcryptgenrandom) · [Microsoft SDL: recommendations](https://learn.microsoft.com/en-us/security/engineering/cryptographic-recommendations).
+
+| Material | Question before use |
+| --- | --- |
+| Symmetric key | Does it come from a cryptographic source or a specified derivation? |
+| CBC IV | Does it meet the unpredictability requirement, and is it retained for recovery? |
+| Initial CTR block | Could any counter block repeat under the same key? |
+| ChaCha20-Poly1305 nonce | How is uniqueness per operation under that key ensured? |
+| Ephemeral private key | How was it generated, and what evidence exists about its lifetime? |
+
+**Historical case:** analyses of Petya in 2016 describe flaws in its own key scheme and its use of **Salsa20**, which aided research and recovery tools. This does not demonstrate that Petya seeded `rand()` with a timestamp or that AES was being attacked. A specific case should be presented in terms of the flaw actually observed by researchers. [Malwarebytes Labs: Petya](https://www.malwarebytes.com/blog/news/2016/04/petya-ransomware) · [Securelist: Petya](https://securelist.com/petya-the-two-in-one-trojan/74609/).
+
+## 2.7 Comparing performance without isolated figures
+
+There is no universal GB/s figure for AES-CTR, AES-CBC, or ChaCha20-Poly1305. Throughput of the **primitive in memory** and the time to **process a file** measure different things. The latter includes reads, writes, authentication, chunking, library calls, and file system behavior. PKCS#7 padding adds between 1 and 16 bytes per file; by itself, it cannot explain a difference of hundreds of MB/s.
+
+At a minimum, a reproducible benchmark must document:
+
+1. CPU model, available AES acceleration, and whether the test runs on the host or in a VM.
+2. Operating system, library, version, compiler, and relevant settings.
+3. Data size and type, number of repetitions, and warm-up procedure.
+4. What is measured: an in-memory transformation alone or reads, writes, and authentication as well.
+5. Metric and spread: elapsed time, median, range, and volume actually processed.
+
+| Situation | Reasonable inference | Limit of the inference |
+| --- | --- | --- |
+| Hardware-accelerated AES is available | It can perform very well with a suitable implementation | CPU brand alone does not establish a specific speed |
+| ChaCha20 runs in software | It can be competitive without AES instructions | It will not always outperform accelerated AES |
+| Data is stored on disk or transmitted over a network | I/O may dominate total time | An in-memory test does not represent the entire incident |
+| A variant encrypts only portions of a file | It processes fewer bytes than full encryption | Its elapsed time should not be compared as though it protected the same volume |
+
+SentinelLabs documented BlackCat samples that selected between AES and ChaCha20 according to available acceleration. The example illustrates why measurements need context rather than a speed table applied to every family. [SentinelLabs](https://www.sentinelone.com/labs/crimeware-trends-ransomware-developers-turn-to-intermittent-encryption-to-evade-detection/).
+
+## 2.8 Verification and code-reading practice
+
+The following exercises use **test buffers in memory**. Their purpose is to verify properties of the constructions and learn how to read calls to them; no isolated test establishes that a real sample uses the same protocol.
+
+### Experiment A — identify what the CBC IV contributes
+
+Take two test messages with an identical first block, encrypt them with the same key and **different IVs**, and compare the first ciphertext blocks. Repeat with the **same IV**. In the second test, matching key, IV, and first input block should produce a matching first ciphertext block. This does not mean that the entirety of both messages is identical. Record the IV, input and output lengths, and padding policy; retain copies of the IVs if the API modifies them during processing. [NIST SP 800-38A](https://csrc.nist.gov/pubs/sp/800/38/a/final).
+
+### Experiment B — observe stream reuse in CTR
+
+For two test byte sequences encrypted with the same CTR stream, the identity `C₁ ⊕ C₂ = P₁ ⊕ P₂` holds. It shows why repeating a counter block under one key exposes information without “breaking AES.” The exercise concerns this algebraic property and should conclude by identifying the fields an analyst would need to find in a real format. Do not transfer this conclusion directly to CBC: repeating its IV has different effects.
+
+### Experiment C — distinguish encryption from authentication
+
+Use a ChaCha20-Poly1305 library to transform a short test message, retain any AAD, and confirm that decryption returns the original. Then change one byte of the ciphertext, tag, or AAD: each change should result in an authentication failure. If an interface returns “ciphertext + tag” in one buffer, record its size and determine where the tag is stored before interpreting the format. RFC 8439 test vectors provide an independent reference. [RFC 8439](https://www.rfc-editor.org/rfc/rfc8439.html).
+
+### Experiment D — check HKDF against a standard
+
+**Test case 1** in Appendix A of RFC 5869 uses SHA-256, 22 bytes of `0b` as IKM, salt `000102030405060708090a0b0c`, `info = f0f1f2f3f4f5f6f7f8f9`, and a **42-byte** output. The PRK begins with `077709362c2e32df` and the OKM with `3cb25f25faacd57a`. Compare **all** bytes published in the RFC, not merely these prefixes. The exercise detects errors in length, ordering, and concatenation in an HKDF implementation. [RFC 5869, Appendix A.1](https://www.rfc-editor.org/rfc/rfc5869.html#appendix-A.1).
+
+### What to require of a C or Rust example
+
+| Aspect | Minimum check before calling it functional |
+| --- | --- |
+| Block type | A `c` block contains C; a `rust` block contains Rust; pseudocode is labeled accordingly |
+| Dependencies | Required library versions and features are stated with the example |
+| Input | Exact key, IV, nonce, and buffer sizes, and known test data |
+| Output | Queried or expected size, tag location, and necessary metadata |
+| Errors | Every API result checked and resources released on failure as well as success |
+| Cryptographic contract | Unambiguous mode and KDF, including the applicable uniqueness requirement |
+| Verification | Published vector and round-trip test, plus a modified-input case that must fail |
+
+A fragment listing `BCryptOpenAlgorithmProvider`, `BCryptGenerateSymmetricKey`, and `BCryptEncrypt` without checking sizes, statuses, and cleanup describes **calls**, not a finished implementation. In Rust, a function returning `Vec<u8>` also does not say whether a tag is included or how errors are reported: consult the library contract and retain that information when documenting a sample. [Microsoft: `BCryptEncrypt`](https://learn.microsoft.com/en-us/windows/win32/api/bcrypt/nf-bcrypt-bcryptencrypt) · [RustCrypto: `chacha20poly1305`](https://docs.rs/chacha20poly1305/latest/chacha20poly1305/).
+
+## Module 02 summary
+
+| Construction | Role | Condition to check |
+| --- | --- | --- |
+| AES-256-CBC | Block-based confidentiality with padding | Suitable IV, lengths, and integrity protection if required by the application |
+| AES-256-CTR | Confidentiality through counter blocks | No repeated counter block under the same key; separate integrity protection |
+| ChaCha20 | Stream-based confidentiality | Key and nonce used without repeating the stream |
+| ChaCha20-Poly1305 | Authenticated encryption | Unique nonce under the key and verification of the tag |
+| RSA-OAEP | Public-key protection of short values | Maximum size, hash, label, and corresponding key |
+| ECDH P-256 / X25519 | Secret agreement | Matching curve, format, validation, and KDF |
+| HKDF-SHA256 | Context-bound derivation | IKM, salt, `info`, length, and test vectors |
+| CSPRNG | Cryptographic random material | Checked result and rules for using the generated material |
+
+Module 3 covers key generation, derivation, exposure, and lifetime in greater depth. A later module examines footer formats and recovery; neither can be inferred solely from the choice of an algorithm.
 
 Xtra:
 
-- **Explain the difference between a block cipher (AES-CBC) and a stream cipher (AES-CTR, ChaCha20). Why does CBC require padding while CTR/ChaCha20 do not?**
+- **Explain the difference between a block cipher in CBC mode (AES-CBC) and stream-based encryption (AES-CTR, ChaCha20). Why does CBC require padding while CTR and ChaCha20 do not?**
 
-- **What happens exactly if you reuse the same IV + the same key on two different files with CBC?**
+- **What exactly happens if the same IV and key are reused for two different files under CBC?**
 
-- **What happens if you reuse the same nonce + the same key with ChaCha20-Poly1305?**
+- **What happens if the same nonce and key are reused in ChaCha20-Poly1305?**
 
-- **Why is it called "nonce" in ChaCha20 and "IV" in CBC? Is it just terminology or is there a functional difference?**
+- **Why is the parameter called a “nonce” in ChaCha20 and an “IV” in CBC? Is this merely terminology, or is there a functional difference?**
 
-- **In the MMP (Multi-Master Pattern) scheme with per-file ephemeral ECDH:**
-  - How many keys are generated per file?
-  - Which key is destroyed immediately and why?
-  - What is stored in the file footer and why is it safe to store it there?
+- **In the MMP (Multi-Master Pattern) scheme with ephemeral ECDH per file:**
+  - How many keys are generated for each file?
+  - Which key is destroyed immediately, and why?
+  - What is stored in the file's footer, and why is it safe to store it there?
 
-- **The module states that MMP generates no network traffic during encryption:**
-  - What network IOCs would an EDR/SOC look for to detect ransomware if there is no C2 during encryption?
-  - What other artifacts (disk, memory, registry) could betray the behavior?
-  - How could an attacker minimize those artifacts?
+- **The module says that the MMP scheme generates no network traffic during encryption:**
+  - Which network IOCs would an EDR or SOC look for if there is no C2 traffic during encryption?
+  - Which other artifacts (disk, memory, registry) might reveal the behavior?
+  - How might an attacker minimize those artifacts?
 
 
 **Next**: Module 03 — Key generation algorithms (master key, session key, per-file key)
