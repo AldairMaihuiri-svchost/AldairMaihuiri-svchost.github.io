@@ -62,6 +62,11 @@ strategies from the defensive side.
   ([versión en español](Ransomware/Ransomware-Modulo2))
   The cryptographic toolkit behind modern encryption schemes — AES-256, ChaCha20-Poly1305, 
   RSA-OAEP, ECDH (Multi-Master Pattern), HKDF, and CSPRNG implementations.
+
+- **[Module 3: Key Generation](Ransomware/Ransomware-Modulo3-en)**
+  ([versión en español](Ransomware/Ransomware-Modulo3))
+  Key hierarchies, CSPRNG, per-file and per-session ECDH, HKDF, domain separation,
+  nonces, public-key formats, and the cryptographic key life cycle.
 ---
 ## Cryptography research
 - **[DES-M — Structural Modification of DES S-boxes: Reference Implementation, Differential Analysis, and Preliminary Study of Language Model Behavior](DES-M/des-m-en)**
