@@ -559,3 +559,8 @@ La enumeración determina **qué entradas llegan a ser consideradas**. Sus resul
 Para estudiar una familia real, vincula cada afirmación a una versión y una fuente. Registra las condiciones del análisis, diferencia capacidad de ejecución observada y evita convertir una hipótesis sobre el impacto en un hecho técnico. La interrupción de procesos y servicios puede relacionarse con archivos en uso, pero constituye otra conducta y requiere su propia evidencia.
 
 **Siguiente:** Módulo 05 — Windows Internals: E/S de archivos, hilos, sincronización y grupos de trabajo.
+
+---
+
+© 2026 Aldair Maihuiri. Todos los derechos reservados. Se permite compartir con atribución al autor. La reproducción sin autorización previa está prohibida.
+
