@@ -79,6 +79,10 @@ strategies from the defensive side.
 - **[Module 6: Concurrent Processing Pipeline](Ransomware/Ransomware-Modulo6-en)**  
   ([versión en español](Ransomware/Ransomware-Modulo6))  
   How enumeration and processing connect through bounded queues, controlled failures, shutdown, recovery, and reproducible     Windows 11 labs.
+
+- **[Module 7: Key Custody and Recovery](Ransomware/Ransomware-Modulo7-en)**  
+  ([versión en español](Ransomware/Ransomware-Modulo7))  
+  How cryptographic material is held, exposed, and reconstructed: key lifetimes, metadata, recovery failures, and a            reproducible lab with synthetic data.
 ---
 ## Cryptography research
 - **[DES-M — Structural Modification of DES S-boxes: Reference Implementation, Differential Analysis, and Preliminary Study of Language Model Behavior](DES-M/des-m-en)**
