@@ -77,7 +77,7 @@ strategies from the defensive side.
   Threads, bounded queues, synchronization, synchronous and overlapped I/O, memory-mapped files, and hands-on labs for         Windows 11.
 
 - **[Module 6: Concurrent Processing Pipeline](Ransomware/Ransomware-Modulo6-en)**  
-  ([Spanish version](Ransomware/Ransomware-Modulo6))  
+  ([versión en español](Ransomware/Ransomware-Modulo6))  
   How enumeration and processing connect through bounded queues, controlled failures, shutdown, recovery, and reproducible     Windows 11 labs.
 ---
 ## Cryptography research
