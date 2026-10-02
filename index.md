@@ -83,6 +83,18 @@ strategies from the defensive side.
 - **[Module 7: Key Custody and Recovery](Ransomware/Ransomware-Modulo7-en)**  
   ([versión en español](Ransomware/Ransomware-Modulo7))  
   How cryptographic material is held, exposed, and reconstructed: key lifetimes, metadata, recovery failures, and a            reproducible lab with synthetic data.
+
+- **[Module 8: Ransom Notes and Coercive Communication](Ransomware/Ransomware-Modulo8-en)**
+  ([versión en español](Ransomware/Ransomware-Modulo8))
+  How ransom messages present claims, identifiers, deadlines, and threats — with a practical method for separating             psychological pressure from verified evidence.
+
+- **[Module 9: Metadata Formats and Recovery](Ransomware/Ransomware-Modulo9-en)**
+  ([versión en español](Ransomware/Ransomware-Modulo9))
+  Footer design, versioning, parsing, integrity checks, and interrupted writes, explored through a reproducible synthetic-     format lab.
+
+- **[Module 10: Asynchronous I/O and Range Coverage](Ransomware/Ransomware-Modulo10-en)**
+  ([versión en español](Ransomware/Ransomware-Modulo10))
+  OVERLAPPED I/O, completion ports, cancellation, byte-range coverage, and measurement through read-only Windows 11            exercises.
 ---
 ## Cryptography research
 - **[DES-M — Structural Modification of DES S-boxes: Reference Implementation, Differential Analysis, and Preliminary Study of Language Model Behavior](DES-M/des-m-en)**
