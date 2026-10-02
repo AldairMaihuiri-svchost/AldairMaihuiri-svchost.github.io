@@ -92,9 +92,9 @@ strategies from the defensive side.
   ([versión en español](Ransomware/Ransomware-Modulo9))
   Footer design, versioning, parsing, integrity checks, and interrupted writes, explored through a reproducible synthetic-     format lab.
 
-- **[Module 10: Asynchronous I/O and Range Coverage](Ransomware/Ransomware-Modulo10-en)**
+- **[Module 10: Logical Fragmentation and Asynchronous I/O](Ransomware/Ransomware-Modulo10-en)**
   ([versión en español](Ransomware/Ransomware-Modulo10))
-  OVERLAPPED I/O, completion ports, cancellation, byte-range coverage, and measurement through read-only Windows 11            exercises.
+  Partial and intermittent processing as an analytical model — byte-range selection, planned versus completed coverage,        IOCP, failures, and read-only Windows 11 experiments.
 ---
 ## Cryptography research
 - **[DES-M — Structural Modification of DES S-boxes: Reference Implementation, Differential Analysis, and Preliminary Study of Language Model Behavior](DES-M/des-m-en)**
