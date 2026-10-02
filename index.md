@@ -67,6 +67,10 @@ strategies from the defensive side.
   ([versión en español](Ransomware/Ransomware-Modulo3))
   Key hierarchies, CSPRNG, per-file and per-session ECDH, HKDF, domain separation,
   nonces, public-key formats, and the cryptographic key life cycle.
+
+- **[Module 4: File Enumeration and Selection](Ransomware/Ransomware-Modulo4-en)**
+  ([versión en español](Ransomware/Ransomware-Modulo4))
+  How file traversal works in Windows: roots, selection rules, error handling, coverage metrics, and hands-on labs with        temporary test data.
 ---
 ## Cryptography research
 - **[DES-M — Structural Modification of DES S-boxes: Reference Implementation, Differential Analysis, and Preliminary Study of Language Model Behavior](DES-M/des-m-en)**
