@@ -1,6 +1,6 @@
 ---
 title: "Ransomware Red Teaming — Module 3: Key Generation"
-description: "Key hierarchies, CSPRNGs, ECDH, HKDF, domain separation, public-key formats, and the life cycle of cryptographic material."
+description: "Key generation, agreement, and custody; ECDH architecture choices, HKDF, public-key formats, metrics, and documented cases."
 author: Aldair Maihuiri
 ---
 
@@ -9,6 +9,14 @@ author: Aldair Maihuiri
 In [Module 02](Ransomware-Modulo2-en), we examined encryption and key agreement algorithms. Here we follow cryptographic material through its life cycle: where it comes from, what each value does, how it is derived, and what information must be retained to make an experiment reproducible. The next module covers file enumeration; for now, we use only laboratory inputs selected in advance.
 
 An architecture can use sound algorithms and still fail because it generates predictable secrets, confuses a public key with a private key, reuses a nonce, or loses a derivation parameter. Key generation is therefore best studied as a complete protocol rather than an isolated call to a random number generator.
+
+### The question that frames this module
+
+Imagine an authorized exercise with three test inputs. For two participants to reproduce the same result, they must agree on a **cryptographic identity**, an algorithm, a source of randomness, a key-derivation method, and the public parameters to preserve. They must also decide who holds the long-lived secret and how to demonstrate that the exercise can be reversed. The number of files resolves none of these decisions; it tells us how many times part of the protocol is repeated.
+
+This chapter has four layers. **Generation:** the CSPRNG and curve library create material that must not be predictable. **Agreement:** two key pairs produce a shared secret through ECDH. **Derivation:** HKDF turns that material into keys for specific uses. **Custody and reconstruction:** public parameters are preserved and the master private key is protected so that the result can be verified later. The output of one layer does not automatically replace the next: an ECDH secret is not an encrypted file, an ephemeral public key is not a secret, and a unique identifier is not a key.
+
+The module compares two teaching models, **A, agreement per input**, and **B, agreement per session with per-input derivations**. They are models for reasoning about isolation, dependency, and cost; they are not automatically attributable to any real family. The exercise uses synthetic inputs and does not process other people's data. By the end, you should be able to explain what each side retains, what is lost when a parameter disappears, the exposure scope of a secret, and the evidence needed to describe a real sample's scheme.
 
 ## 3.1 Vocabulary and scope
 
@@ -49,16 +57,38 @@ A curve library should generate scalars through its own API or accept a compatib
 
 The design studied here starts with a master pair and compares two ways to obtain working keys. The master public key is available to the side initiating the agreement; the master private key remains under the control of the side that must reconstruct it later. Both sides need exactly the same public derivation parameters.
 
-```text
-master pair: private M / public M
-                         │
-                         ├── A: new ephemeral pair for each input
-                         │       └── ECDH → HKDF → working key A_i
-                         │
-                         └── B: one ephemeral pair per session
-                                 └── ECDH → session material
-                                            └── HKDF with stable ID → key B_i
+The order and information boundaries are easier to see in the sequence below. “Record” represents only public laboratory metadata; it is neither a required server nor a mandatory transport path. The holder of the master private key can perform reconstruction later with that metadata.
+
+```mermaid
+sequenceDiagram
+    participant C as Custodian
+    participant P as Test process
+    participant R as Public record
+    C->>C: Generate and protect M_priv
+    C->>P: Supply authenticated M_pub
+    alt A: agreement per input
+        loop Each input ID
+            P->>P: Generate e_priv_i and e_pub_i
+            P->>P: ECDH with M_pub and HKDF for K_i
+            P->>R: Store ID_i, e_pub_i and parameters
+            P->>P: Release temporary material after use
+        end
+    else B: agreement per session
+        P->>P: Generate e_priv_s and e_pub_s
+        P->>P: ECDH with M_pub and HKDF-Extract
+        loop Each input ID
+            P->>P: HKDF-Expand for K_i
+            P->>R: Store ID_i and parameters
+        end
+        P->>R: Store e_pub_s and session parameters
+        P->>P: Release temporary material after use
+    end
+    R-->>C: Public metadata for reconstruction
+    C->>C: ECDH with M_priv and ephemeral public key
+    C->>C: Repeat derivation using model and ID
 ```
+
+The diagram distinguishes **who generates what**, **what is transmitted**, and **what remains secret**. `M_priv`, ephemeral private keys, `Z`, `PRK`, and working keys are not written to the public record. A working key may have a short lifetime without proving that all of its copies have left memory. A specific implementation must define the ordering of metadata storage and the use of `K_i`; the diagram shows dependencies only.
 
 | Material | Model A: per input | Model B: per session | Kept publicly? |
 | --- | --- | --- | --- |
@@ -84,6 +114,14 @@ side B:  b·A = b·(a·G) = (a·b)·G
 The equality explains the agreement, not the encoding of a final key. Libraries define how the ECDH result is represented and how points are validated; the protocol must also specify the KDF and its parameters. Knowing `A` and `B` is not equivalent to knowing `a` or `b`. ECDH does not encrypt a message by itself. NIST SP 800-56A Rev. 3 documents key-establishment schemes based on elliptic curves and Diffie–Hellman. [3]
 
 In both models, the master pair represents one side and an ephemeral pair represents the other. A basic test confirms that both sides obtain the same agreement material **before** deriving keys. If they do not, check the curve, public-key format, validation, and implementation first; a KDF cannot fix an incorrectly specified agreement.
+
+### Who owns the master public key?
+
+ECDH yields an agreement but **does not, on its own, authenticate whoever supplied the public key**. If someone replaces `M_pub` before an exercise, the process may derive material under that substitute. The intended master private key will not reproduce the agreement; moreover, the holder of the private key corresponding to the substitute public key could do so with the preserved public parameters. This is a problem of **binding a public key to its owner**, not a failure of ECDH mathematics. Replacement during distribution resembles an intermediary attack; when the public key is already packaged in an artifact, the artifact's integrity and provenance matter as well. [3][8]
+
+In a laboratory, a responsible party can compare a fingerprint recorded through an independent channel, verify a signature on the configuration, or check the integrity of an authorized artifact. Including the public key in a binary removes a runtime download, **but it does not automatically authenticate that binary**. The algorithm, curve, representation, and suitability of the public key must also be checked. A signature on a public key in turn requires a verifier key whose identity is already trusted; a text label is not a root of trust.
+
+To distinguish these failures, an exercise can retain fingerprints of two different public keys and ask whether a substitution would be detected **before** agreement, while checking parameters, or only during reconstruction. There is no need to modify a real system: compare records from two test data sets.
 
 ## 3.5 Architecture A: one ephemeral agreement per input
 
@@ -126,6 +164,33 @@ PRK_s + context(input 03) → HKDF-Expand → K_03
 | Public parameters to preserve | Parameters for each input | Session and per-input parameters |
 
 This table describes an architecture, not a performance measurement. Actual costs depend on the platform, cryptographic provider, storage, and number of inputs. A hybrid RSA scheme can reuse an existing public key: it need not generate a new RSA pair for every file. An ECDH comparison should therefore not count full RSA key-pair generation for every input. A valid benchmark must identify the operations measured and the hardware used.
+
+### Why choose A or B in an exercise?
+
+The decision turns on **the scope of compromise and reconstruction**. When inputs must be analyzed separately, A provides independent ECDH secrets: losing one ephemeral private key or `Z_i` affects that input, provided the master private key has not been compromised. It requires more agreements, more ephemeral pairs, and associated metadata for each input. B reduces pair generation and ECDH agreements to one per session; its working keys remain distinct if every `info` has a distinct identity, but exposure of `Z_s` or `PRK_s` may affect every input in that session. The master private key remains a shared exposure point in **both** models.
+
+| Design question | A: per input | B: per session |
+| --- | --- | --- |
+| What is isolated? | Each input's agreement | Each working key, under a shared session origin |
+| What if an ephemeral public key is lost? | The reconstruction parameter for one input is missing | The whole session may be affected if its only session public key is lost |
+| Which temporary secret has the widest scope? | `Z_i`, for input `i` | `Z_s` or `PRK_s`, for the session |
+| Which costs grow with N? | N pair generations, N ECDH operations, N derivations | N contexts and N derivations; one pair generation and ECDH operation per session |
+| What must be checked? | Mapping of each input ID to its public key | Unique session identity, distinct input IDs, and reproducible contexts |
+
+For `N = 10,000` inputs, the **theoretical** counts are `10,000` pairs and `10,000` agreements for A, versus `1` pair and `1` agreement per session for B; both require `10,000` working-key derivations. With multiple sessions, multiply B's fixed cost by the number of sessions. Metadata volume cannot be calculated from public keys alone: IDs, versions, salts, format fields, and any duplication imposed by the design also count. These are operation counts, not measured times or a universal ranking.
+
+### Documented families and the limits of analogy
+
+A report can document a “symmetric key per file” without establishing “ECDH per file.” It can also mention Curve25519 without specifying the scope of each agreement. The chapter's models should only be attributed to a sample when analysis shows **which pair is generated, which material is reused, and where the parameters needed to recover each key are kept**.
+
+| Family and specific source | What the source documents | What the source does not establish |
+| --- | --- | --- |
+| **LockBit-NG-Dev**, sample analyzed by Trend Micro | AES with a random key per file, protected using the RSA public key included in the configuration. [9] | This is neither A nor B: the described scheme wraps keys with RSA rather than performing those ECDH agreements. Do not extend the finding to every LockBit version. |
+| **BlackCat/ALPHV**, Microsoft description | File content may be encrypted with AES-CTR or ChaCha20 according to configuration; the description notes random material used in AES key derivation. [10] | It does not, by itself, establish whether asymmetric establishment follows A or B or whether all variants share one hierarchy. |
+| **Cl0p Linux**, ELF sample studied by SentinelLABS | RC4 with a per-file key and an embedded RC4 master key; analysts were able to recover keys protected by that mechanism in this sample. [11] | It is not A or B, and it does not describe every Cl0p variant or its Windows versions. |
+| **RansomHub**, joint agency advisory | Reports the use of Curve25519 in its cryptographic stage and characteristics observed in affected files. [12] | Naming a curve does not establish pair-generation frequency, KDF details, or the session identity of our models. |
+
+This comparison suggests an order for reading evidence: identify the reported mechanism, determine its scope, and only then ask whether it corresponds to the teaching model. **A key per file does not automatically mean an ECDH operation per file.**
 
 ## 3.7 HKDF-SHA-256: extract and expand
 
@@ -251,6 +316,26 @@ Conversion must interpret the header, check type and length, extract the coordin
 
 Before attributing a C/Rust mismatch to HKDF, compare stages: curve → public representation → ECDH agreement → `IKM` → `salt` → `PRK` → `info` → `OKM`. Secret values at these stages should be observed only in an isolated test environment and removed from any logs that will be published.
 
+### P-256 and X25519 are not the same format at different lengths
+
+In the uncompressed SEC1 representation used here, a P-256 public key has both coordinates `(X, Y)` and occupies `65` bytes; the particular CNG public blob occupies `72` bytes including its header. X25519, specified by RFC 7748 for agreement on Curve25519 in Montgomery form, uses a `32`-byte public value representing the `u` coordinate. Neither trimming bytes nor renaming the curve converts between these formats. Scalar handling, input validation, and representation of the result also depend on the scheme. [7][13]
+
+| Question | P-256 in this module | X25519 |
+| --- | --- | --- |
+| What public value is shown? | Point `(X, Y)`, uncompressed SEC1 | A 32-byte public value defined by RFC 7748 |
+| What length is quoted? | 65 bytes for SEC1; 72 bytes for the specific CNG blob | 32 bytes in the raw RFC 7748 format; other containers add headers |
+| Which mathematics does the interface expose? | Operations on a Weierstrass curve | An exchange function based on the `u` coordinate of a Montgomery curve |
+| What must be checked on import? | Format, curve, and point validation | Encoding and library rules; check for an all-zero shared result according to the protocol |
+| What decides the choice in this course? | Interoperability with the available formats and providers | Interoperability with agreed X25519 implementations and formats |
+
+TLS 1.3 requires interoperability with P-256 and recommends support for X25519: both are deployed, so calling one the “de facto standard” does not replace a platform compatibility decision. RFC 7748 describes the X25519 exchange and a possible check for an all-zero shared secret; a specification such as RFC 9180 requires that check for its construction. Neither public-key length nor a curve label establishes the speed of a complete system. [14][13][8]
+
+### A note on post-quantum cryptography
+
+NIST published **ML-KEM** in FIPS 203 for establishing a secret through encapsulation and **ML-DSA** in FIPS 204 for digital signatures. They perform different jobs: ML-DSA does not replace HKDF or a symmetric cipher, and ML-KEM is not simply “ECDH with a longer key.” A new protocol would need to specify authentication, encapsulation and decapsulation, KDF, parameter formats, compatibility, and reconstruction. [15][16]
+
+Public material and encapsulation-ciphertext sizes are measurable considerations. For example, a recent hybrid TLS 1.3 profile combines X25519 with ML-KEM-768 and specifies an `1184`-byte ML-KEM public component and a `1088`-byte encapsulation ciphertext. **Those figures belong to that profile**; they do not describe a ransomware footer or establish that a family uses the scheme. The family reports cited here do not show that all of them have adopted post-quantum mechanisms or explain why any particular one has not. The subject calls for protocol comparisons and evidence about specific versions, not a mechanical substitution of ML-KEM for ECDH. [17]
+
 ## 3.11 Key lifetime and exposure scope
 
 A key exists for a period of time. Its creation, use, retention, and disposal must be distinguished:
@@ -267,6 +352,33 @@ A key exists for a period of time. Its creation, use, retention, and disposal mu
 Destroying a library *handle*, overwriting a buffer, and deleting a file are different operations. Overwriting an application-owned buffer does not guarantee the absence of internal copies, logs, dumps, or paged material. `SecureZeroMemory` and `zeroize` help shorten the lifetime of copies controlled by the application; they do not promise complete forensic erasure. The description and implementation must agree on when an ephemeral private key is actually destroyed: retaining it in a context until final cleanup is not the same as destroying it immediately after agreement.
 
 Exposure must be described precisely: `K_01` is not `PRK_s`, and `PRK_s` is not the master private key. Domain separation limits accidental reuse, but it does not make every output independent of a compromised parent value.
+
+### Where the master private key lives between runs
+
+The master private key is a persistent secret **belonging to the party responsible for reconstruction**. The test process does not need it to perform ECDH with the public key. In an exercise, appoint a custodian and document storage, access, a recovery copy, rotation, and disposal. NIST SP 800-57 covers the protection, availability, recovery, and inventory of keying material. [18]
+
+| Custody model | Consequence to evaluate |
+| --- | --- |
+| Private key embedded in a distributed artifact | Anyone who obtains the artifact can try to extract the key; the two sides are not separated. |
+| Store managed by the custody team | Access controls, logging, recovery copy, and availability for verification must be identified. |
+| Private key protected by a key derived from a password | Protection depends on password entropy, KDF, parameters, and credential management. Calling it “encrypted” does not settle the question. |
+| Private key controlled by a remote service | Availability, authentication, permissions, and logging become dependencies. Such a service is not assumed in an offline exercise. |
+
+Deriving a private key directly from a password does not rescue a weak password; it also requires a suitable KDF and a valid way to obtain a curve scalar. A conceptually different option is to generate the private key through a cryptographic library and protect its storage using a key derived from credentials. Recovery and access control still have to be specified.
+
+Module 07 examines transport or protection of material according to the architecture. Here, the essential questions are **who holds the private key and how authorized recovery works**. The master public key can be distributed, but it must be bound to that custodian and the approved configuration.
+
+### Exercise rules and chain of custody
+
+Before generating a single key, the Rules of Engagement (RoE) should define the allowed inputs, whether any modification is permitted, the designated custodian, storage location, who may verify derivations, and how materials will be handed over or deleted at closeout. Synthetic labels and data suffice for this module; a team can prove agreement equality and derived-key equality without encrypting client information.
+
+A useful handover record includes a session ID, protocol version, fingerprint of the master public key, custodian of the private key, inventory of public parameters, results of the reconstruction check, and acknowledgment of receipt or disposal as agreed. **A fingerprint does not replace a recovery copy**; it establishes identity only when compared against a trusted value. Secrets do not belong in openly distributed reports. Specific custody mechanisms must follow the client's policies and the engagement agreement.
+
+### Memory, observability, and OPSEC limits
+
+Pair generation and agreements produce a pattern of operations: calls to cryptographic libraries, creation of key objects, memory allocations, and, where parameters are written, changes to test files. **What is visible** depends on instrumentation and provider. A `BCryptGenRandom` call alone does not establish weak randomness, and its absence from a log does not prove that no randomness was generated. Misuse of a CSPRNG is identified by examining its source, error checks, value semantics, and sometimes observed repetition; there is no universal indicator that directly diagnoses poor entropy.
+
+To limit accidental exposure of secrets, avoid printing them, bound their lifetime in the process, and examine copies, dumps, logs, and paged memory. On Windows, `VirtualLock` prevents **locked pages** from being written to the pagefile while they remain locked, but it cannot guarantee the absence of other copies or dumps. Clearing an application-owned buffer does not automatically erase a library's internal state. State these partial guarantees within their actual scope. [19]
 
 ## 3.12 Public parameters and this module's boundaries
 
@@ -305,6 +417,24 @@ Repeating `info(01)` must reproduce `K_01` exactly. Changing only the visible na
 
 The student's results table can record `same/different` for the PRK and keys. There is no need to print the shared secret, PRK, or keys. To validate a custom implementation, first pass the official vector in Section 3.8, then compare lab results with an independent library.
 
+### Measuring A and B without confusing theory and performance
+
+Document an exercise with **theoretical operation counts** separately from **measurements**. The first follow from the protocol; the second require hardware, library and cryptographic-provider versions, curve, cache conditions, repetition count, and execution conditions. Do not attribute to the curve a difference caused by writing results or initializing a library.
+
+| Measure | How to obtain it | What to record |
+| --- | --- | --- |
+| Pair generations | Count completed calls in each batch | `N` in A; one per session in B, with separately prepared master pairs |
+| ECDH agreements | Count completed agreements | `N` in A; one per session in B, for the side preparing the batch |
+| Per-input derivations | Count HKDF-Expand calls with distinct contexts | `N` in both; verify that an ID does not repeat within a session |
+| Time per stage | Monotonic clock before and after separate batches | Median and spread over repeats, errors, and provider version |
+| Public material | Serialized length of each public value and all other parameters | Actual message or record size, not merely a curve's key length |
+| Working memory | Instrument the process over batches of known size | Peak usage and whether an inventory is retained; do not publish secrets to measure it |
+| Reconstruction | Verify equality with the custodian on synthetic inputs | Number of reconstructable inputs, failures, and each reason |
+
+An **illustrative calculation, not a benchmark**, for `10,000` inputs with uncompressed SEC1 P-256 public keys: A produces `10,000 × 65 = 650,000` bytes of ephemeral public values alone, whereas B needs one `65`-byte value **per session**. With a `72`-byte CNG blob, A accumulates `720,000` bytes of blobs before IDs, salts, and headers. If B copies its single public key into every record, the format can erase the physical storage saving: measure the actual serialized result. These counts exclude the master public key and do not establish a file-per-second rate.
+
+A minimal results sheet can state `N`, model, curve, library, system, planned and completed operations, times per stage, public bytes, errors, and reconstruction verification. When reporting a time for `10,000` inputs, specify whether it includes master-pair generation, serialization, and storage. The module does not claim that one architecture is always faster; it shows how to justify a comparison.
+
 ## 3.15 Errors to recognize when reviewing an implementation
 
 | Symptom | Possible cause | Check |
@@ -317,6 +447,14 @@ The student's results table can record `same/different` for the PRK and keys. Th
 | A supposedly new nonce repeats under the same key | Uniqueness is not tracked across operations | Check key and nonce scope |
 | CRC passes although data was modified | CRC does not authenticate | Verify the AEAD tag |
 | A comment says a private key is “destroyed,” but its context retains it | Described and actual lifetimes differ | Identify the last use and remaining copies |
+
+### Documented case: a Linux Cl0p variant
+
+SentinelLABS analyzed a Cl0p ELF executable and found an **embedded RC4 master key**. In that sample, the RC4 key used for each file was protected with the embedded symmetric key instead of the RSA process described for Windows versions. The researchers reported that the flaw made affected files recoverable and published a decryptor for **that variant**. They also observed that the write associated with the key material included additional memory data, potentially exposing forensic information about the file. [11]
+
+The lesson is not that “Cl0p always has weak keys” or that “any embedded key makes every case recoverable.” The result depends on a particular sample and how its per-file key was protected. The case gives substance to three questions that a generic error table cannot settle: **What material was recoverable in the sample? What metadata survived? What evidence supports the possibility of reconstruction?** A different version requires a fresh review of its binary and format, without transferring this conclusion automatically.
+
+It also shows why a random-generator failure, a custody failure, and a serialization failure should be distinguished. In the case described, the possibility of recovery relates to protection of per-file keys; the extra memory data comes from a write-length problem. It is not a proven example of ECDH nonce reuse or confusion between SEC1 and CNG. Naming another family as an example of those faults would require original research that actually demonstrates them.
 
 ## 3.16 Review questions
 
@@ -337,11 +475,11 @@ The student's results table can record `same/different` for the PRK and keys. Th
 
 ## Module 03 Summary
 
-Key generation involves selecting a cryptographic source, defining roles and scopes, agreeing on a secret when two key pairs are involved, deriving material with a specified KDF, separating uses with unambiguous contexts, preserving the public parameters needed later, and limiting the lifetime of secret material. **Per-input ECDH** and **per-session ECDH with per-input derivation** are distinct models; each needs its own description of key and metadata scope.
+Key generation involves selecting a cryptographic source, defining roles and scopes, agreeing on a secret when two key pairs are involved, deriving material with a specified KDF, separating uses with unambiguous contexts, preserving the public parameters needed later, and limiting the lifetime of secret material. **Per-input ECDH** and **per-session ECDH with per-input derivation** are distinct models: A distributes dependency across agreements, while B concentrates agreement in a session and separates working keys through contexts. Both still depend on protection of the master private key and authenticity of the master public key.
 
-The outcome of this module is a verifiable specification and two observations with known inputs. File discovery belongs to the next chapter. Material transport, the final footer, and full reconstruction are covered in the modules identified in the index.
+The outcome of this module is a verifiable specification, two observations with known inputs, and a measurement template that distinguishes operation counts from measured times. The comparison with LockBit-NG-Dev, BlackCat/ALPHV, Cl0p Linux, and RansomHub is limited to the cited evidence: use of a curve or per-file keys alone cannot justify assigning A or B to a family. File discovery belongs to the next chapter. Material transport, the final footer, and full reconstruction are covered in the modules identified in the index.
 
-**Next**: Module 04 — File Enumeration Algorithm
+**Next:** [Module 04 — File Enumeration and Selection](Ransomware-Modulo4-en).
 
 ## Technical references
 
@@ -352,6 +490,18 @@ The outcome of this module is a verifiable specification and two observations wi
 5. Microsoft Learn, [BCryptDeriveKey](https://learn.microsoft.com/en-us/windows/win32/api/bcrypt/nf-bcrypt-bcryptderivekey).
 6. IETF, [RFC 5480: Elliptic Curve Cryptography Subject Public Key Information](https://www.rfc-editor.org/rfc/rfc5480.html), Section 2.2.
 7. Microsoft Learn, [BCRYPT_ECCKEY_BLOB](https://learn.microsoft.com/en-us/windows/win32/api/bcrypt/ns-bcrypt-bcrypt_ecckey_blob).
+8. IETF, [RFC 9180: Hybrid Public Key Encryption](https://www.rfc-editor.org/rfc/rfc9180.html), sections on authentication and public-key validation.
+9. Trend Micro, [technical analysis of LockBit-NG-Dev](https://www.trendmicro.com/content/dam/trendmicro/global/en/research/24/b/lockbit-attempts-to-stay-afloat-with-a-new-version/technical-appendix-lockbit-ng-dev-analysis.pdf), page 4.
+10. Microsoft Security Intelligence, [Ransom:Win32/Blackcat description](https://www.microsoft.com/en-us/wdsi/threats/malware-encyclopedia-description?Name=Ransom%3AWin32%2FBlackcat), file-encryption section.
+11. SentinelLABS, [Cl0p Ransomware Targets Linux Systems with Flawed Encryption](https://www.sentinelone.com/labs/cl0p-ransomware-targets-linux-systems-with-flawed-encryption-decryptor-available/).
+12. CISA, FBI, MS-ISAC, and HHS, [joint RansomHub advisory (AA24-242A)](https://www.cisa.gov/sites/default/files/2024-09/aa24-242a-stopransomware-ransomhub-ransomware_1.pdf).
+13. IETF, [RFC 7748: Elliptic Curves for Security](https://www.rfc-editor.org/rfc/rfc7748.html), Sections 5 and 6.1.
+14. IETF, [RFC 8446: The Transport Layer Security (TLS) Protocol Version 1.3](https://www.rfc-editor.org/rfc/rfc8446.html), Sections 4.2.7 and 4.2.8.2.
+15. NIST, [FIPS 203: Module-Lattice-Based Key-Encapsulation Mechanism Standard](https://csrc.nist.gov/pubs/fips/203/final).
+16. NIST, [FIPS 204: Module-Lattice-Based Digital Signature Standard](https://csrc.nist.gov/pubs/fips/204/final).
+17. IETF, [RFC 10024: Post-Quantum Traditional Hybrid Key Agreement Mechanisms for TLS 1.3](https://www.rfc-editor.org/rfc/rfc10024.html), Section 4.
+18. NIST, [SP 800-57 Part 1 Rev. 5: Recommendation for Key Management](https://csrc.nist.gov/pubs/sp/800/57/pt1/r5/final).
+19. Microsoft Learn, [VirtualLock](https://learn.microsoft.com/en-us/windows/win32/api/memoryapi/nf-memoryapi-virtuallock).
 
 ---
 
