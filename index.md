@@ -71,9 +71,14 @@ strategies from the defensive side.
 - **[Module 4: File Enumeration and Selection](Ransomware/Ransomware-Modulo4-en)**
   ([versión en español](Ransomware/Ransomware-Modulo4))
   How file traversal works in Windows: roots, selection rules, error handling, coverage metrics, and hands-on labs with        temporary test data.
+  
 - **[Module 5: Concurrency and I/O in Windows](Ransomware/Ransomware-Modulo5-en)**  
   ([versión en español](Ransomware/Ransomware-Modulo5))  
   Threads, bounded queues, synchronization, synchronous and overlapped I/O, memory-mapped files, and hands-on labs for         Windows 11.
+
+- **[Module 6: Concurrent Processing Pipeline](Ransomware/Ransomware-Modulo6-en)**  
+  ([Spanish version](Ransomware/Ransomware-Modulo6))  
+  How enumeration and processing connect through bounded queues, controlled failures, shutdown, recovery, and reproducible     Windows 11 labs.
 ---
 ## Cryptography research
 - **[DES-M — Structural Modification of DES S-boxes: Reference Implementation, Differential Analysis, and Preliminary Study of Language Model Behavior](DES-M/des-m-en)**
