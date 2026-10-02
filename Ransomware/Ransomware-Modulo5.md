@@ -662,3 +662,7 @@ El módulo trata las primitivas y sus contratos de vida. La integración de vari
 - [Microsoft Learn: File Mapping](https://learn.microsoft.com/en-us/windows/win32/memory/file-mapping).
 - [Microsoft Learn: QueryPerformanceCounter](https://learn.microsoft.com/en-us/windows/win32/api/profileapi/nf-profileapi-queryperformancecounter).
 - [The Rust Standard Library: `std::sync`](https://doc.rust-lang.org/std/sync/).
+
+---
+
+© 2026 Aldair Maihuiri. Todos los derechos reservados. Se permite compartir con atribución al autor. La reproducción sin autorización previa está prohibida.
