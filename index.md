@@ -72,7 +72,7 @@ strategies from the defensive side.
   ([versión en español](Ransomware/Ransomware-Modulo4))
   How file traversal works in Windows: roots, selection rules, error handling, coverage metrics, and hands-on labs with        temporary test data.
 - **[Module 5: Concurrency and I/O in Windows](Ransomware/Ransomware-Modulo5-en)**  
-  ([Spanish version](Ransomware/Ransomware-Modulo5))  
+  ([versión en español](Ransomware/Ransomware-Modulo5))  
   Threads, bounded queues, synchronization, synchronous and overlapped I/O, memory-mapped files, and hands-on labs for         Windows 11.
 ---
 ## Cryptography research
