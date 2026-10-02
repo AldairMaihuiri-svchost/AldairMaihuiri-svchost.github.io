@@ -163,7 +163,15 @@ with tempfile.TemporaryDirectory(prefix="module9_") as directory:
     fixture = path.read_bytes()
     restored, parsed = decode(fixture)
     print("ROUND_TRIP", restored == original, parsed["entry_id"])
+    tiny = b"x" + encode(record)
+    tiny_data, _ = decode(tiny)
+    print("TINY_FILE", len(tiny_data), "METADATA_BYTES", len(tiny) - len(tiny_data))
+    double = fixture + encode(record)
+    double_data, _ = decode(double)
+    print("TWO_FOOTERS_PREFIX_MATCH", double_data == original,
+          "EXTRA_PREFIX_BYTES", len(double_data) - len(original))
     cases = {
+        "MISSING_FOOTER": original,
         "TRUNCATED": fixture[:-2],
         "FALSE_LENGTH": fixture[:-4] + struct.pack("<I", 999999),
         "CHANGED_BYTE": fixture.replace(b"E-1", b"E-2"),
@@ -184,7 +192,7 @@ with tempfile.TemporaryDirectory(prefix="module9_") as directory:
             print(name, str(exc))
 ```
 
-Execution should report a successful round trip; rejections for trailer and length; a CRC failure after an ID change; rejection of an unknown version; and `BAD_TAG` when a CRC is recalculated after changing a field while leaving the tag intact. This last case shows that **a correct CRC is not authenticity**. Since the test key is in the script, anyone can produce another tag; this is not a trustworthy production signature.
+Execution should report a successful round trip; relative growth of a one-byte file; rejection of a missing footer; failures for trailer, length, CRC after an ID change, unknown version; and `BAD_TAG` after recomputing CRC without updating the tag. `TWO_FOOTERS_PREFIX_MATCH False` shows a significant limit: this reader parses **the last** footer while leaving the first among preceding bytes. An application would need a history or ambiguity policy before claiming restoration. A correct CRC is not authenticity, and the key published in the code does not model a trustworthy production signature.
 
 ### Extensions of the experiment
 
@@ -244,7 +252,38 @@ In lab 9.6, `ROUND_TRIP` means that **this** encoder and **this** reader agree o
 
 As a second exercise on the same bytes, record each mutation's offset, rejection reason, and whether the parser reached any memory allocation. Insert an unsupported version, an invalid `entry_id` with a recomputed tag, and a length above the limit. Repeat with two independent readers or a manual offset specification: an encoder and decoder that share the same bug can appear to round-trip correctly. Neither a victim's keys nor a real ransomware footer is needed to find inconsistent boundaries, states, and attribution.
 
-## 9.10 Report on an observed format
+## 9.10 Location and scope of metadata
+
+*Footer* denotes one particular location: bytes at the end of the primary stream. Not every design stores all its information there. Before comparing formats, distinguish a **per-entry record**, **per-session record**, **external index**, and **remotely held material**. One system can combine several layers. Location changes which objects must survive together and what evidence a recovery attempt requires.
+
+| Scope | Recovery dependency | Loss to model |
+| --- | --- | --- |
+| Metadata in each file | File and added bytes travel together if the copy preserves them | Truncation, modification, or a copy that drops the ending. |
+| Separate folder or volume index | IDs and paths must remain associated | The index is lost even though all files remain. |
+| Session manifest | One common reference connects many entries | Loss or corruption affects its whole set. |
+| Remote record | Recovery depends on external availability and custody | A local copy may lack sufficient parameters. |
+
+There is no universally “most recoverable” choice: repeating a field resists loss of an index but consumes space per entry; a central record makes auditing easier but concentrates dependency. Redundancy requires a rule for **which copy takes precedence** when records disagree and how their authenticity is checked. The master private key remains governed by Module 07; duplicating public metadata does not solve loss of that secret.
+
+## 9.11 Small files, alternate streams, and containers
+
+Added size matters. For a 100-byte file with 200 bytes of metadata, relative growth is 200%, although the absolute cost is 200 bytes. Report body, tag, trailer, and possible alignment separately. A format might exclude entries below a threshold or reference them through a manifest, but must record the rule and test `size < footer`. Size growth and data coverage have different denominators.
+
+On NTFS, a file can have a primary stream and named alternate data streams (*ADS*). Placing metadata in an ADS changes what is visible when inspecting only the primary stream, but **guarantees neither invisibility nor faithful transport**: the destination file system and copy method matter. An analyst should enumerate streams, relate them to their files, and test whether a copy to another destination preserves them. This module does not implement ADS storage or concealment. [Microsoft: File Streams](https://learn.microsoft.com/en-us/windows/win32/fileio/file-streams).
+
+A ZIP, DOCX, or other container has an internal structure separate from bytes that may be added **after** its end. Appending an external footer does not put it inside the container. Some readers tolerate trailing bytes while others reject or interpret them differently; test specific tools and versions instead of asserting one rule for every ZIP. A report distinguishes an *application footer*, an *external trailer*, and *archived content*. [PKWARE APPNOTE](https://www.pkware.com/documents/APPNOTE/APPNOTE-6.2.0.txt).
+
+On SMB, a client sees a remote file under the permissions, caching, and opening semantics of its environment. Do not assume access to the server's physical volume, or that a local path and UNC path accept the same streams or preserve identical metadata after copying. An authorized trial compares reads, test writes, file size as seen from both ends when available, and hashes; record latency and errors without automatically attributing them to the parser.
+
+## 9.12 Corruption, migration, and measurement
+
+For a missing or invalid footer, **rejecting interpretation** prevents false conclusions; it does not tell us whether another copy exists. Without modifying the sample, an analyst looks for an authorized manifest, session record, prior copy, or independent metadata. Validate identity and version before using any such source. Report partial recovery as partial with verifiable offsets and files; do not claim complete restoration of unchecked bytes. If two plausible footers are present, the format must define whether there is history or an ambiguity error.
+
+Migrating from v1 to v2 means retaining examples of both versions and specifying whether a new reader supports v1, whether a separate v2 artifact is created, and which fields cannot be inferred from v1. Do not reinterpret an older record under new rules just because it has the same marker. For two observed versions, deliver a `producer × reader × outcome` matrix and versioned inventory. If an update happened during a session, establish from evidence which version belongs to each entry: one “global” version without an ID relation may fail.
+
+Measure `N` files, aggregate original bytes `B`, metadata bytes `M`, p50/p95 added size, and rejected records by cause. Report `M/B` for the set and `metadata/size` per category: a single average conceals the impact on small files. Measure added time against the same work and result with cache and device conditions documented. A known field size does not establish the “typical size” of footers from different families.
+
+## 9.13 Report on an observed format
 
 For analysis of a real sample, provide a table of verified offsets, example bytes and their provenance, supported version, parser bounds, public fields and their scopes, integrity method, observed errors, and confidence. A byte pattern at the end of a file is a classification clue; only protocol analysis and authorized recovery support a conclusion that the format is sufficient to reproduce results.
 
@@ -260,10 +299,13 @@ For analysis of a real sample, provide a table of verified offsets, example byte
 8. What evidence would show that a complete output was published after its metadata were verified rather than merely after some bytes were written?
 9. How does retaining an extension differ from retaining an entry's full identity?
 10. What observation would show that a reader for another version misinterpreted a footer instead of establishing that the data were corrupt?
+11. If a session index and a per-entry footer disagree, what evidence could resolve the correct identity and version?
+12. Which fields must survive if a small file does not carry complete metadata in its primary stream?
+13. Which test distinguishes a copy that dropped an ADS from a record that was never created?
 
 ## Module 09 summary
 
-A footer is a format, not a recovery promise. Dependencies, bounds, versions, and authenticity are specified before publishing a binary structure. A final length can locate a body only when the trailer and its limits are known and verifiable. A CRC detects certain accidental damage; a tag operates under another contract. The lab demonstrates rejection of incomplete formats without confusing located bytes with recovered data.
+A footer is a location and format, not a recovery promise. Metadata can also reside per entry, volume, or session; each location creates different dependencies. Specify bounds, versions, authenticity, and loss behavior before interpreting bytes. Small files, ADS, containers, and SMB call for transport and compatibility checks. The lab rejects incomplete formats without confusing located bytes with recovered data.
 
 ## Technical references
 
@@ -272,6 +314,7 @@ A footer is a format, not a recovery promise. Dependencies, bounds, versions, an
 - [Microsoft: `SetFilePointerEx`](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-setfilepointerex).
 - [Microsoft: `WriteFile`](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-writefile).
 - [Microsoft: `FlushFileBuffers`](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-flushfilebuffers).
+- [Microsoft: File Streams](https://learn.microsoft.com/en-us/windows/win32/fileio/file-streams).
 
 © 2026 Aldair Maihuiri. All rights reserved. Sharing with attribution to the author is permitted. Reproduction without prior authorization is prohibited.
 © 2026 Aldair Maihuiri. Todos los derechos reservados. Se permite compartir con atribución al autor. La reproducción sin autorización previa está prohibida.

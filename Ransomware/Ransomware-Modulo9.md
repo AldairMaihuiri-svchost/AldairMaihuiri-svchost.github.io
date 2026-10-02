@@ -163,7 +163,15 @@ with tempfile.TemporaryDirectory(prefix="module9_") as directory:
     fixture = path.read_bytes()
     restored, parsed = decode(fixture)
     print("ROUND_TRIP", restored == original, parsed["entry_id"])
+    tiny = b"x" + encode(record)
+    tiny_data, _ = decode(tiny)
+    print("TINY_FILE", len(tiny_data), "METADATA_BYTES", len(tiny) - len(tiny_data))
+    double = fixture + encode(record)
+    double_data, _ = decode(double)
+    print("TWO_FOOTERS_PREFIX_MATCH", double_data == original,
+          "EXTRA_PREFIX_BYTES", len(double_data) - len(original))
     cases = {
+        "MISSING_FOOTER": original,
         "TRUNCATED": fixture[:-2],
         "FALSE_LENGTH": fixture[:-4] + struct.pack("<I", 999999),
         "CHANGED_BYTE": fixture.replace(b"E-1", b"E-2"),
@@ -184,7 +192,7 @@ with tempfile.TemporaryDirectory(prefix="module9_") as directory:
             print(name, str(exc))
 ```
 
-La ejecución debe mostrar una ida y vuelta correcta; rechazos por tráiler y longitud; rechazo por CRC al modificar el ID; rechazo por versión desconocida; y `BAD_TAG` cuando se recalcula el CRC tras modificar un campo sin actualizar la etiqueta. Este último resultado demuestra que **un CRC correcto no es autenticidad**. Como la clave de prueba está en el código, cualquiera puede calcular otra etiqueta: no se está modelando una firma confiable para uso real.
+La ejecución debe mostrar una ida y vuelta correcta; el crecimiento relativo de un archivo de un byte; el rechazo del footer ausente; rechazos por tráiler y longitud; rechazo por CRC al modificar el ID; rechazo por versión desconocida; y `BAD_TAG` cuando se recalcula el CRC sin actualizar la etiqueta. `TWO_FOOTERS_PREFIX_MATCH False` muestra un límite importante: este lector interpreta **el último** footer, pero deja el primero como parte de los bytes anteriores. Una aplicación necesitaría una política de historial o rechazo de ambigüedad antes de declarar restauración. Un CRC correcto no es autenticidad, y la clave publicada en el código no modela una firma confiable.
 
 ### Extensiones del experimento
 
@@ -244,7 +252,38 @@ En el laboratorio 9.6, `ROUND_TRIP` demuestra que **ese** codificador y **ese** 
 
 Como segunda práctica sobre los mismos bytes, registra para cada mutación el offset modificado, el motivo del rechazo y si el parser alcanzó alguna reserva de memoria. Introduce una versión no admitida, un `entry_id` inválido con etiqueta recalculada y una longitud mayor que el límite. Repite el caso con dos lectores independientes o con una especificación manual de offsets: una ida y vuelta entre funciones que comparten el mismo error puede parecer correcta. No necesitas claves de una víctima ni un footer de ransomware real para detectar incoherencias de límites, estados y atribución.
 
-## 9.10 Informe de un formato observado
+## 9.10 Ubicación y ámbito de los metadatos
+
+La palabra *footer* describe una ubicación concreta: bytes al final del flujo principal. No todos los esquemas guardan ahí toda la información. Antes de comparar formatos, separa **registro por entrada**, **registro por sesión**, **índice externo** y **material bajo custodia remota**. Un mismo sistema puede combinar varias capas. La ubicación cambia qué objetos deben sobrevivir juntos y qué evidencia necesita quien intenta reconstruirlos.
+
+| Ámbito | Dependencia al recuperar | Pérdida que debe modelarse |
+| --- | --- | --- |
+| Metadatos en cada archivo | El archivo y sus bytes adicionales viajan juntos si la copia los conserva | Truncamiento, modificación o copia que elimina el segmento final. |
+| Registro separado por volumen o carpeta | Hace falta preservar la correspondencia de IDs y rutas | El índice se pierde aunque queden todos los archivos. |
+| Manifiesto por sesión | Una referencia común relaciona muchas entradas | La pérdida o corrupción del manifiesto afecta a todo su conjunto. |
+| Registro remoto | La recuperación depende de disponibilidad y custodia externas | Una copia local puede carecer de parámetros suficientes. |
+
+No hay una elección universal «más recuperable»: un campo repetido resiste la pérdida de un índice, pero ocupa espacio en cada entrada; un registro central facilita auditoría, pero concentra dependencia. Una variante redundante exige definir **qué copia prevalece** cuando dos registros discrepan y cómo se comprueba su autenticidad. La clave privada maestra sigue bajo el contrato del Módulo 07; replicar metadatos públicos no resuelve la pérdida de ese secreto.
+
+## 9.11 Archivos pequeños, flujos alternativos y contenedores
+
+El tamaño añadido importa. Para un archivo de 100 bytes con 200 bytes de metadatos, el aumento relativo es del 200 %, aunque el coste absoluto sea 200 bytes. Expresa por separado longitud del cuerpo, etiqueta, tráiler y posible alineación. Un formato puede decidir excluir entradas bajo un umbral o referenciarlas mediante un manifiesto, pero debe registrar esa regla y comprobar el caso `tamaño < footer`. No se debe confundir incremento de tamaño con cobertura de datos: son unidades diferentes.
+
+En NTFS, un archivo puede tener un flujo principal y flujos de datos con nombre (*ADS*). Guardar metadatos en un ADS cambia la superficie visible al inspeccionar solo el flujo principal, pero **no garantiza invisibilidad ni transporte fiel**: el sistema de archivos y el modo de copia importan. Un analista debe enumerar flujos, asociarlos a su archivo y comprobar si sobreviven a una copia de prueba hacia otro destino. El módulo no implementa almacenamiento en ADS ni técnicas para ocultar registros. [Microsoft: File Streams](https://learn.microsoft.com/en-us/windows/win32/fileio/file-streams).
+
+Un ZIP, DOCX u otro contenedor tiene una estructura interna distinta de los bytes que puedan agregarse **después** de su cierre. Añadir un footer externo no significa colocarlo dentro del contenedor. Algunos lectores toleran bytes finales y otros los rechazan o interpretan de forma distinta; esa respuesta se prueba con herramientas y versiones concretas, sin establecer una regla para todos los ZIP. La diferencia entre *footer de la aplicación*, *tráiler externo* y *contenido archivado* debe figurar en el informe. [PKWARE APPNOTE](https://www.pkware.com/documents/APPNOTE/APPNOTE-6.2.0.txt).
+
+En un recurso SMB, el cliente ve un archivo remoto bajo permisos, caché y semántica de apertura de ese entorno. No asumas acceso al volumen físico del servidor, ni que una ruta local y una UNC aceptan los mismos flujos o preservan idénticos metadatos en una copia. Un ensayo autorizado compara resultado de lectura, escritura de prueba, tamaño visto desde ambos extremos cuando se dispone de ellos y hashes; registra latencia y errores sin atribuirlos automáticamente al parser.
+
+## 9.12 Corrupción, migración y medición
+
+Ante un footer ausente o inválido, **rechazar la interpretación** protege de conclusiones falsas; no responde si existe otra copia. El procedimiento de análisis busca, sin modificar la muestra, un manifiesto autorizado, un registro de sesión, una copia previa o metadatos independientes. Si uno existe, se valida identidad y versión antes de usarlo. La recuperación parcial se reporta como tal con offsets y archivos verificables; no se anuncia una restauración completa sobre bytes no comprobados. Si hay dos footers plausibles al final, el formato debe especificar si existe historial o si la ambigüedad es un error.
+
+Migrar de v1 a v2 implica conservar ejemplos de ambas versiones y especificar si el lector nuevo admite v1, si se crea un artefacto v2 separado y qué campos no pueden inferirse de v1. No se debe reinterpretar un registro antiguo bajo reglas nuevas solo porque comparten marca. En un entorno con dos versiones observadas, entrega una matriz `productor × lector × resultado` y un inventario por versión. Si la actualización ocurrió en medio de una sesión, determina por evidencia qué versión corresponde a cada entrada: una versión «global» sin relación de ID puede fallar.
+
+Mide `N` archivos, suma de tamaños originales `B`, bytes de metadatos `M`, p50/p95 de tamaño añadido y número de registros rechazados por causa. Informa `M/B` para el conjunto y `metadatos/tamaño` por categoría: un promedio único oculta el impacto sobre archivos pequeños. El tiempo adicional se mide contra el mismo trabajo y resultado, con condiciones de caché y dispositivo descritas. Un campo de tamaño conocido tampoco determina el «tamaño típico» de footers de familias diferentes.
+
+## 9.13 Informe de un formato observado
 
 Para analizar una muestra real, entregar una tabla de offsets comprobados, bytes de ejemplo con su procedencia, versión admitida, límites del parser, campos públicos y alcance de cada uno, método de integridad, errores observados y grado de certeza. Un patrón de bytes al final del archivo es una pista de clasificación; solo el análisis del protocolo y una recuperación autorizada pueden sostener la conclusión de que el formato basta para reconstruir resultados.
 
@@ -260,10 +299,13 @@ Para analizar una muestra real, entregar una tabla de offsets comprobados, bytes
 8. ¿Qué evidencia demostraría que una salida completa fue publicada después de verificar sus metadatos y no solo después de escribir algunos bytes?
 9. ¿En qué se diferencia conservar la extensión de conservar la identidad completa de una entrada?
 10. ¿Qué hallazgo permitiría afirmar que un parser de otra versión interpretó mal un footer en vez de concluir que los datos estaban corruptos?
+11. Si un índice por sesión y un footer por entrada discrepan, ¿qué evidencia permitiría resolver la identidad y versión correctas?
+12. ¿Qué campos deben conservarse si un archivo pequeño no lleva metadatos completos en su flujo principal?
+13. ¿Qué prueba distingue una copia que omitió un ADS de un registro que nunca se creó?
 
 ## Resumen del módulo 09
 
-El footer es un formato, no una promesa de recuperación. Se especifican dependencias, límites, versiones y autenticidad antes de publicar una estructura binaria. Una longitud al final permite localizar un cuerpo solo si el tráiler y sus límites son conocidos y verificables. Un CRC detecta ciertos daños accidentales; una etiqueta se evalúa bajo otro contrato. El laboratorio demuestra rechazo de formatos incompletos y evita confundir bytes localizados con datos recuperados.
+Un footer es una ubicación y un formato, no una promesa de recuperación. Los metadatos también pueden residir por entrada, volumen o sesión; cada ubicación crea dependencias distintas. Se especifican límites, versiones, autenticidad y comportamiento ante pérdidas antes de interpretar bytes. Archivos pequeños, ADS, contenedores y SMB requieren comprobar transporte y compatibilidad. El laboratorio demuestra rechazo de formatos incompletos sin confundir bytes localizados con datos recuperados.
 
 ## Referencias técnicas
 
@@ -272,5 +314,6 @@ El footer es un formato, no una promesa de recuperación. Se especifican depende
 - [Microsoft: `SetFilePointerEx`](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-setfilepointerex).
 - [Microsoft: `WriteFile`](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-writefile).
 - [Microsoft: `FlushFileBuffers`](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-flushfilebuffers).
+- [Microsoft: File Streams](https://learn.microsoft.com/en-us/windows/win32/fileio/file-streams).
 
 © 2026 Aldair Maihuiri. Todos los derechos reservados. Se permite compartir con atribución al autor. La reproducción sin autorización previa está prohibida.

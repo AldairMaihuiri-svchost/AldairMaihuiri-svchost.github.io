@@ -1,14 +1,16 @@
 ---
-title: "Ransomware Red Teaming — Module 10: Asynchronous I/O and Range Coverage"
-description: "OVERLAPPED and IOCP contracts, completions, cancellation, measurement, and range analysis with read-only labs."
+title: "Ransomware Red Teaming — Module 10: Logical Fragmentation and Asynchronous I/O"
+description: "Partial encryption as a subject of analysis, byte ranges, IOCP, and read-only Windows 11 labs."
 author: Aldair Maihuiri
 ---
 
-# Module 10 — Asynchronous I/O and Range Coverage
+# Module 10 — Logical Fragmentation and Asynchronous I/O
+
+In this module, **fragmentation** means that an operation selects separate regions of a file's content while leaving others untreated. When the observed operation is cryptographic, this is called *partial* or *intermittent encryption*. It does not describe the file's physical layout on a volume. The central question is how to describe selected intervals, confirm which ones actually completed, and evaluate their effects without confusing “untouched bytes” with “recoverable file.”
 
 A `ReadFile` call can complete during the call or remain pending. In either case, a program using asynchronous I/O must know **which request produced a result, which buffer remains occupied, and when that buffer can be reused**. Multiple outstanding requests do not guarantee completion in submission order, continuous device activity, or a performance gain over simple reads.
 
-This module has two connected parts. The first examines `OVERLAPPED` and I/O Completion Ports (IOCP) using **read-only** disposable files. The second describes byte ranges in a file and measures coverage without applying any cryptographic transformation. [Module 05](Ransomware-Modulo5-en) introduced I/O and concurrency primitives, [Module 06](Ransomware-Modulo6-en) explained pipeline queues and outcomes, and [Module 09](Ransomware-Modulo9-en) established requirements for describing ranges in a format. Here we check what those decisions mean when operations complete or fail.
+This module connects range selection to execution: it examines `OVERLAPPED` and I/O Completion Ports (IOCP) on **read-only** disposable test files and represents intervals without applying a cryptographic transformation. [Module 05](Ransomware-Modulo5-en) introduced I/O and concurrency primitives, [Module 06](Ransomware-Modulo6-en) explained pipeline queues and outcomes, and [Module 09](Ransomware-Modulo9-en) established requirements for describing ranges in a format. Here we check what those decisions mean when operations complete or fail.
 
 ## 10.1 Synchronous execution, concurrency, and completion
 
@@ -87,7 +89,7 @@ If a file's size is not a sector multiple, its final block needs special attenti
 
 Ordinary errors and an abrupt process exit leave different evidence. A missing record after a crash does not prove that the operation was never submitted or never touched the disk. Module 06 covered this uncertainty for tasks; here it also applies to I/O in flight.
 
-## 10.6 Byte intervals and coverage
+## 10.6 Logical fragmentation: intervals and coverage
 
 A clear range representation uses half-open intervals `[start, end)` within `[0, size)`. Adjacent ranges `[0, 10)` and `[10, 20)` do not overlap, while `[0, 10)` and `[5, 15)` do. Analysis of a partial plan should calculate at least unique bytes covered, gaps, overlaps, number of ranges, first and last offset, and the portion verifiable using retained metadata.
 
@@ -101,6 +103,10 @@ A clear range representation uses half-open intervals `[start, end)` within `[0,
 Byte coverage does **not** establish whether a format becomes unusable or recoverable. ZIP, PDF, images, and databases distribute data and structures differently. An ordinary application may reject a file even when much content can still be extracted with other tools; a sample may alter a few bytes and have a large apparent effect. Separate the regular reader's behavior, partial extraction, and verified restoration rather than assigning a universal rule to “the first 256 KB.”
 
 For files larger than 4 GB, offsets and lengths need suitable types and checked conversions. Casting a 64-bit offset to `DWORD` when calculating a range boundary can truncate it. Also prevent `period = 0`, zero increments, and overflow when adding a block length and a gap.
+
+A file may occupy several physical *extents* and still be processed in full; another may be physically contiguous while receiving a logical plan of separate intervals. `FSCTL_GET_RETRIEVAL_POINTERS` describes allocation locations on disk, a different question from the logical offsets in this lab. [Microsoft: `FSCTL_GET_RETRIEVAL_POINTERS`](https://learn.microsoft.com/en-us/windows/win32/api/winioctl/ni-winioctl-fsctl_get_retrieval_pointers).
+
+Dividing a file into blocks **does not imply** partial encryption if every block is processed. Analysis distinguishes the range selection rule, selected intervals, accepted I/O requests, completed intervals, and untreated bytes. A mode name or one percentage cannot establish all five sets. MITRE ATT&CK documents partial encryption by INC Ransomware, while Microsoft describes noncontiguous segments in a variant of The Gentlemen. These are observed examples, not a universal rule for every family. [MITRE: INC Ransomware](https://attack.mitre.org/software/S1139/) · [Microsoft: The Gentlemen](https://www.microsoft.com/en-us/security/blog/2026/05/28/the-gentlemen-ransomware-dissecting-a-self-propagating-go-encryptor/).
 
 ## 10.7 Lab A: completions and ranges with known bytes
 
@@ -152,6 +158,17 @@ def partial_plan(size, block, gap):
         offset += block + gap
     return result
 
+def compare_plan(planned, terminal):
+    if len(set(planned)) != len(planned) or len(set(terminal)) != len(terminal):
+        raise ValueError("DUPLICATE_INTERVAL")
+    unknown = set(terminal) - set(planned)
+    missing = set(planned) - set(terminal)
+    if unknown:
+        raise ValueError("UNPLANNED_INTERVAL")
+    return (sum(length for _, length in planned),
+            sum(length for _, length in terminal),
+            sorted(missing))
+
 with tempfile.TemporaryDirectory(prefix="module10_") as directory:
     path = Path(directory) / "known.bin"
     path.write_bytes(DATA)
@@ -180,6 +197,8 @@ with tempfile.TemporaryDirectory(prefix="module10_") as directory:
     print("GAP", coverage(len(DATA), [(0, 10), (20, len(DATA) - 20)]))
     partial = partial_plan(len(DATA), BLOCK, BLOCK)
     print("PARTIAL", coverage(len(DATA), partial))
+    print("PLAN_STATUS", compare_plan(partial, partial))
+    print("MISSING_PLANNED", compare_plan(partial, partial[:1] + partial[2:]))
     virtual_size = 5 * 1024**3
     print("LARGE_DESCRIPTOR", coverage(
         virtual_size, [(0, BLOCK), (virtual_size - BLOCK, BLOCK)]))
@@ -190,7 +209,7 @@ with tempfile.TemporaryDirectory(prefix="module10_") as directory:
     os.unlink(path)
 ```
 
-The program reports `ALL_TERMINAL True`, `HASH_MATCH True`, and full coverage. `GAP` shows that reaching the correct last offset does not establish gap-free coverage. Overlap is rejected. Vary `SLOTS` from 1 to 4 and measure elapsed time with `time.perf_counter()` if useful, but the result depends on device, caching, and size; it is not a universal IOCP benchmark.
+The program reports `ALL_TERMINAL True`, `HASH_MATCH True`, and full coverage. `GAP` shows that reaching the correct last offset does not prove the absence of gaps. `PARTIAL` represents intended gaps; `PLAN_STATUS` confirms that all selected ranges appear terminal; `MISSING_PLANNED` identifies a planned range without completion. Overlap is rejected. Vary `SLOTS` from 1 to 4 and measure elapsed time with `time.perf_counter()` if useful, but the result depends on device, caching, and size; it is not a universal IOCP benchmark.
 
 ## 10.8 Lab B: read-only IOCP reader
 
@@ -363,13 +382,24 @@ Lab B adds observation of a real Windows 11 API using a disposable file. Create 
 
 On an asynchronous error, `GetQueuedCompletionStatus` may return `FALSE` with a valid `OVERLAPPED` pointer. That request reached a **failed** terminal state: record `GetLastError`, offset, and length; decrement pending work and decide whether to cancel the rest. In contrast, `FALSE` with a null `OVERLAPPED` can signal a timeout or wait failure without identifying a request. Do not release a buffer until its terminal result is known. After `CancelIoEx`, some requests can still complete successfully while others end with `ERROR_OPERATION_ABORTED`; account for both. If the environment exposes an error the example cannot recover from, retain its output and do not reinterpret it as content corruption.
 
-## 10.11 Selected ranges and logical scale
+## 10.11 Fragmented selection, content, and logical scale
 
 Represent every range as a half-open interval `[start, end)`. For a size `S`, require `0 <= start <= end <= S`; sort and check for overlaps before doing I/O. Specify whether adjacent ranges merge and whether an empty range is valid. A plan is complete when its range union is `[0, S)`; completion count and summed lengths alone are insufficient. For a partial plan, compute three separate quantities: `S` (logical size), **unique selected** bytes, and **actually completed** bytes. If a completion is missing, the last two values differ.
 
 The virtual descriptor over 4 GiB in lab A tests offset arithmetic and descriptor validation **without allocating 4 GiB or reading a large file**. It tests neither performance, FAT32 compatibility, `SetFilePointerEx` limits, nor data recovery. An actual run checks the file system's size limits, effective access, and file changes during reading. If a file grows or shrinks between querying its size and reading it, record both observations and reject complete-coverage claims based on one stable size.
 
 Partial plans must preserve their meaning across modules: Module 09 stores exact intervals, and Module 10 checks them against terminal operations. “First and last 1%” requires a rounding rule, a unit, behavior for small files, and a rule for overlapping intervals. A percentage can accurately describe bytes touched yet conceal that a format's index near the end was damaged. The result table should separate byte coverage from the ability to open or reconstruct the file.
+
+| Pattern observed in a sample | Question needed for an exact description | Limit of inference |
+| --- | --- | --- |
+| One initial region | How many bytes and which size-dependent rule were observed? | A header may matter, but formats differ. |
+| Regions at both ends | Do they overlap in small files, and which rule prevails? | Not every file format has an index at its end. |
+| Separated segments | Where do they begin, how long are they, and what gaps remain? | The same coverage percentage may affect different regions. |
+| Adjacent blocks covering everything | Did all blocks complete, including the short last one? | This is block processing, not partial encryption. |
+
+Reconstruct a sample's region choices **from observed offsets and format version**; do not infer a supposedly optimal rule. To evaluate effects, use known test files of several formats and compare four distinct observations: changed bytes, opening with an ordinary reader, partial extraction with a suitable tool, and verified restoration. An intact header does not guarantee utility; a damaged header does not prove every other byte is unrecoverable. Record the tool, version, and result rather than only labeling the file “damaged.”
+
+Module 03 adds the question of **cryptographic state per region**: when studying a real case, record whether each segment has a distinct nonce or context and which bytes each tag authenticates. IOCP completion order cannot replace the segment's identity or establish that cryptographic state can be reused. The lab implements no encryption; its offset map provides a basis for checking that the Module 09 descriptor corresponds to observed operations.
 
 ## 10.12 Reproducible measurement protocol
 
@@ -386,6 +416,38 @@ A repeatable trial fixes the input file and hash, block size, maximum pending re
 
 A useful comparison finishes with an equivalence check: both variants must read the same intervals, obtain the same digest of bytes in logical order, and reach comparable terminal states. Time, resource use, and I/O footprint can then be discussed. If one variant misses a block, its shorter duration is not a performance advantage. No number in this module is presented as a universal IOCP benchmark.
 
+## 10.13 Actual concurrency, network I/O, and error policy
+
+The example's four slots prove an invariant; they are **not** a configuration recommendation. Compare 1, 2, and 4 on the same disposable file and record pending requests, latency, unique bytes, and total time. An SSD, HDD, and SMB share may respond differently; size, cache, competing load, and system filters change the outcome. A larger pending limit may reduce waiting or increase contention. Report the measured curve, not a universal value or a setting intended to avoid alerts.
+
+On SMB, observed times include network and server behavior as well as the client. A short read, disconnect, or failed open calls for the origin, path, expected size, and terminal state of each request. An authorized trial bounds work and stops submitting new requests after exceeding its error budget or agreed scope; drain accepted requests before releasing resources. `CancelIoEx` requests cancellation; it does not erase already observed activity. Cancellation can also arrive too late and coexist with successful completions.
+
+| Observed condition | Decision that needs explanation | Recorded result |
+| --- | --- | --- |
+| Access denied | Skip entry or stop the set according to scope | Uncovered entry and error code. |
+| Known transient failure | Finite retry under recorded conditions | Attempts, intervals, and final state. |
+| Short read or changing size | Invalidate range and review identity/size | Actual bytes and pending coverage. |
+| SMB disconnection | Stop new requests for the path | Pending, completed, and canceled work. |
+| Stop request | Stop submitting and drain accepted work | Terminal state by offset before closing. |
+
+I/O traces and EDR records are evidence of activity, not targets for concealment in this lab. An absent event can reflect filters, dropped events, or capture window; IOCP or `NO_BUFFERING` alone does not prove malicious behavior either. Evaluate sequences, file scope, and corroborated effects. `FILE_FLAG_DELETE_ON_CLOSE` has separate lifecycle semantics and does not help verify coverage; the course does not use it to remove traces.
+
+## 10.14 Integrated exercise and fragmentation report
+
+Using lab A's disposable file, compare two **analytical** plans: `spans(len(DATA))` covers the whole file, while `partial_plan(len(DATA), BLOCK, BLOCK)` leaves gaps. Keep the program output and record logical size, `(offset, length)` pairs, unique selected bytes, and the `coverage` result. `HASH_MATCH` belongs to the reconstructed full read; it does not prove a transformation of the partial ranges. Repeat after dropping one planned interior interval: distinguish a “gap required by the rule” from a “planned range with no completion.” These are different failures and require separate report columns.
+
+| Report field | Question answered |
+| --- | --- |
+| Plan rule and version | How were intervals obtained for this observed size? |
+| Planned and terminal intervals | Did every selected interval complete? |
+| Unique selected bytes / logical size | What fraction of content was in the plan? |
+| Verified terminal bytes / planned bytes | How much of the plan actually finished? |
+| Intended and unintended gaps | What was omitted by rule, and what was missed by error? |
+| Hash, file identity, and time | Which copy and observation does the result describe? |
+| Format and recovery checks | What verifiable behavior did the test file exhibit? |
+
+For an empty file, both denominators may be zero: report “no intervals” instead of an undefined percentage. For the virtual 5 GiB descriptor, report **plan properties only**, never speed or bytes actually read. Compare Module 09's serialized descriptor with the terminal offset list; a reader should be able to locate every discrepancy exactly.
+
 ## Xtra:
 
 1. What evidence would show an operator that a reader covered all expected ranges rather than only the first four blocks?
@@ -398,10 +460,13 @@ A useful comparison finishes with an equivalence check: both variants must read 
 8. Which machine conditions should appear in a report before claiming an IOCP performance advantage?
 9. Which states remain open between requesting cancellation and receiving terminal completions?
 10. What would indicate that a short last block was rejected because of alignment policy rather than corrupt content?
+11. How would a range omitted by the fragmentation rule differ in a record from a selected range that never completed?
+12. Which metadata connects each segment to its authentication conditions without relying on completion order?
+13. What observations establish partial encryption rather than full-file processing in blocks?
 
 ## Module 10 summary
 
-Correct asynchronous I/O requires identifying every request, retaining its resources until a terminal result, and verifying coverage by offset. IOCP communicates successful and failed completions; cancellation requires draining states. Unbuffered I/O adds restrictions and does not guarantee speed. A range plan must be described exactly and measured with clear denominators. The labs separate reading, completion, and coverage from any transformation of content.
+Logical fragmentation selects content intervals; it is neither physical file layout nor dividing a file into blocks and processing them all. Its analysis distinguishes planned, completed, and omitted ranges while checking effects on formats and recovery separately. Asynchronous I/O needs every completion and error associated with its offset; cancellation requires draining states. The labs model coverage and failures through reads of test data without transforming its contents.
 
 ## Technical references
 
@@ -411,6 +476,9 @@ Correct asynchronous I/O requires identifying every request, retaining its resou
 - [Microsoft: File buffering](https://learn.microsoft.com/en-us/windows/win32/fileio/file-buffering).
 - [Microsoft: `CreateFileW`](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilew).
 - [Microsoft: `MapViewOfFile`](https://learn.microsoft.com/en-us/windows/win32/api/memoryapi/nf-memoryapi-mapviewoffile).
+- [Microsoft: `FSCTL_GET_RETRIEVAL_POINTERS`](https://learn.microsoft.com/en-us/windows/win32/api/winioctl/ni-winioctl-fsctl_get_retrieval_pointers).
+- [MITRE ATT&CK: INC Ransomware](https://attack.mitre.org/software/S1139/).
+- [Microsoft Security: The Gentlemen](https://www.microsoft.com/en-us/security/blog/2026/05/28/the-gentlemen-ransomware-dissecting-a-self-propagating-go-encryptor/).
 
 © 2026 Aldair Maihuiri. All rights reserved. Sharing with attribution to the author is permitted. Reproduction without prior authorization is prohibited.
 © 2026 Aldair Maihuiri. Todos los derechos reservados. Se permite compartir con atribución al autor. La reproducción sin autorización previa está prohibida.

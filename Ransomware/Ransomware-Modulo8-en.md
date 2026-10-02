@@ -149,7 +149,41 @@ Acquisition method also matters. Keep a working copy, its hash, its source path,
 
 **Interpretation exercise.** Consider four fictional observations: A and B share `S-101`; B contains `image_file_found`; an entry associated with `S-101` is recorded only as `attempted`; and C claims publication under `S-202`. Write two finding sentences, one about the matching identifiers and one about the entry outcome. The first may state that A and B show the same ID text. The second may only state that an attempt was recorded. C's claim provides no proof of publication. Repeat after changing B to `S-202` and identify which connection is no longer justified.
 
-## 8.7 Report and Xtra questions
+## 8.7 Publication timing and notice scope
+
+Creating a notice is an event with its own state, not an automatic consequence of data transformation. A workflow may prepare text before examining entries, write it while work remains pending, or publish it after a verified result. Each ordering produces a different relationship among **visible message**, **session state**, and **confirmed results**. An interruption may leave notices without affected files or affected files without a notice. A notice in every folder multiplies artifacts and permission failures; one desktop notice depends on the user's session. Neither distribution guarantees that a recipient saw it.
+
+| Observed time | Interpretation risk | Evidence to preserve |
+| --- | --- | --- |
+| Before operations | A notice can announce results that never occurred | Creation time, issued ID, and later per-entry state. |
+| While operations are pending | Coverage changes after the notice already exists | In-flight states, errors, and each observation time. |
+| After a verification | Earlier results may be absent from the notice | Selection rule, confirmations, and publication failures. |
+| Following a retry | Conflicting texts or IDs may coexist | Versions, hashes, and the link of each notice to its session. |
+
+An authorized exercise **models these states** with the lab's synthetic records without creating or distributing extortion messages. Add a fictional `phase` field (`prepared`, `pending`, `verified`) and compare each record's claims with its phase. The reporting goal is to explain an interrupted sequence without inventing completed operations.
+
+## 8.8 Channels, claimed identity, and recovery demonstrations
+
+A notice may name email, a web portal, an anonymous service, or a conversation identifier. Classify these as **declared channels**, not proof of a verifiable counterparty. An infrastructure analysis preserves the text, domain or identifier, observation date, link to the sample, and changes between variants; the lab establishes no communication. One reused channel does not identify an individual by itself, and multiple channels do not prove different operators. A channel's exposure and possible expiry affect interpretation of a notice found months later.
+
+Offers to “decrypt a sample file” need three separate events: the **offer in the notice**, **verifiable delivery of a sample**, and **confirmed restoration**. Only the third, with known original bytes and custody, supports the claim that this particular case was reconstructed. It does not prove all files can be restored. In an authorized simulation, the client specifies a disposable file, its hash, the protocol version, and a validation method independent of the notice's channel in advance. Key, identifier, nonce, and metadata requirements connect to Modules 03, 07, and 09; their absence may make recovery impossible despite the message's promise.
+
+Language is another sample attribute: record whether text is fixed, occurs in several versions, or was observed to vary with regional settings. An awkward translation may suggest template reuse but does not prove geographical origin. Personalization with an organization's name, data excerpts, or an apparent deadline requires corroborating the provenance of **each field**. A displayed countdown does not prove that any subsequent action is automated.
+
+## 8.9 Documented comparison and cautious attribution
+
+| Case and source | Published observation | Limit of comparison |
+| --- | --- | --- |
+| [LockBit 3.0, 2023 joint advisory](https://www.cisa.gov/sites/default/files/2023-03/aa23-075a-stop-ransomware-lockbit.pdf) | Describes a note dropped after file encryption with a name linked to an ID. | Does not establish that all variants and affiliates used the same sequence. |
+| [RansomHub, 2024 joint advisory](https://www.cisa.gov/sites/default/files/2024-09/aa24-242a-stopransomware-ransomhub-ransomware_1.pdf) | The note described during encryption generally lacks an initial monetary demand. | Do not invent fields or extrapolate to every incident. |
+| [CL0P and MOVEit, 2023 joint advisory](https://www.cisa.gov/news-events/cybersecurity-advisories/aa23-158a) | The documented campaign focused on data theft; extortion does not always follow per-file encryption. | Do not force the campaign into a post-encryption notice template. |
+| [ALPHV/BlackCat, 2024 update](https://www.cisa.gov/sites/default/files/2024-03/aa23-353a-stopransomware-alphv-blackcat-update_2.pdf) | Documents an extortion and affiliate context. | A family label cannot attribute an isolated note. |
+
+Comparing **structure, order, and tone** in particular notes requires dated, verified copies of each variant; a general family advisory is no substitute for those samples. Record which fields are present and which are unknown. Claims that notes became “more aggressive” or “more professional” need a corpus, defined time period, and reproducible criteria. A planted copy, imitation, or template shared across affiliates can produce textual matches. Correlate ID, data format, process, chronology, and provenance before attribution.
+
+Payment probability cannot be computed from one note either. A rate needs a denominator, an account of observation bias, a time period, and a confirmed outcome; subjective impressions of tone are not measurement. A report can measure how many notices were found, on which surfaces, which claims were corroborated, and how many recipients or systems were exposed according to authorized evidence.
+
+## 8.10 Report and Xtra questions
 
 An analysis record should preserve sample provenance, date and variant; a copy and digest of the note; encoding; extracted fields; observed locations and times; links to other artifacts; uncorroborated claims; and confidence level. Describing coercion calls for attention to the recipients and the uncertainty imposed on them as well as to the bytes of the message.
 
@@ -163,15 +197,21 @@ An analysis record should preserve sample provenance, date and variant; a copy a
 6. Why does a note in every directory fail to establish that every file in those directories was processed?
 7. Which operational decision is revealed when a template displays an ephemeral public key instead of an opaque ID?
 8. What would have to happen for a deadline announced in the message to correspond to a verifiable change in the operation's state?
+9. If notices are published before results are verified, which contradictions can arise after an interruption?
+10. Which observations distinguish the offer of a recovery demonstration from confirmed restoration?
+11. What evidence would distinguish a reused template from a note attributable to a particular variant?
 
 ## Module 08 summary
 
-A note communicates claims and may apply pressure; its presence does not establish those claims. Identifiers must be linked to records and observed files without confusing them with public keys. On Windows 11, text, wallpaper, and HTA have distinct contracts and artifacts. The lab offers a reproducible way to distinguish a message, evidence, and limits of inference.
+A note communicates claims and may apply pressure; its presence does not establish those claims. Publication, distribution, channels, language, and recovery offers each have their own states and evidentiary requirements. Identifiers must be linked to records and observed files. On Windows 11, text, wallpaper, and HTA have different artifacts. Family comparisons need particular samples and dates; the lab separates message, evidence, and limits of inference.
 
 ## Technical references
 
 - [MITRE ATT&CK T1486: Data Encrypted for Impact](https://attack.mitre.org/techniques/T1486/).
 - [CISA/FBI/MS-ISAC: LockBit 3.0](https://www.cisa.gov/sites/default/files/2023-03/aa23-075a-stop-ransomware-lockbit.pdf).
+- [CISA/FBI/MS-ISAC/HHS: RansomHub](https://www.cisa.gov/sites/default/files/2024-09/aa24-242a-stopransomware-ransomhub-ransomware_1.pdf).
+- [CISA/FBI: CL0P and MOVEit](https://www.cisa.gov/news-events/cybersecurity-advisories/aa23-158a).
+- [CISA/FBI/HHS: ALPHV/BlackCat](https://www.cisa.gov/sites/default/files/2024-03/aa23-353a-stopransomware-alphv-blackcat-update_2.pdf).
 - [Microsoft: Known Folders](https://learn.microsoft.com/en-us/windows/win32/shell/known-folders).
 - [Microsoft: SystemParametersInfoW](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-systemparametersinfow).
 - [Microsoft: VBScript deprecation resources](https://learn.microsoft.com/en-us/windows/whats-new/deprecated-features-resources#vbscript).

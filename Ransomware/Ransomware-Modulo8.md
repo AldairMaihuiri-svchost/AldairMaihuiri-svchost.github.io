@@ -149,7 +149,41 @@ El método de adquisición también importa. Conserva una copia de trabajo, su h
 
 **Ejercicio de interpretación.** Supón cuatro datos ficticios: A y B comparten `S-101`; B contiene `image_file_found`; una entrada asociada a `S-101` figura solo como `attempted`; y C declara publicación con `S-202`. Redacta dos frases de hallazgo: una sobre coincidencia de identificadores y otra sobre el resultado de la entrada. La primera puede afirmar que A y B muestran el mismo texto de ID. La segunda solo puede afirmar que hay un intento registrado. La declaración de C no aporta evidencia de publicación. Repite el ejercicio cambiando B a `S-202` y observa qué relación deja de estar justificada.
 
-## 8.7 Informe y preguntas Xtra
+## 8.7 Momento de publicación y alcance del aviso
+
+La creación de una nota es un evento con estado propio, no una consecuencia automática de transformar datos. Un flujo puede preparar el texto antes de examinar entradas, escribirlo mientras hay trabajos pendientes o publicarlo tras un resultado verificado. Cada orden deja una relación diferente entre **mensaje visible**, **estado de la sesión** y **resultados comprobados**. Una interrupción puede dejar notas sin archivos afectados o archivos afectados sin nota. Una nota en cada carpeta multiplica artefactos y fallos de permiso; una sola nota en el escritorio depende de la sesión del usuario. Ninguna distribución garantiza que el destinatario la vea.
+
+| Momento observado | Riesgo interpretativo | Evidencia a conservar |
+| --- | --- | --- |
+| Antes de las operaciones | La nota puede anunciar resultados que nunca ocurrieron | Marca de creación, ID emitido y estado posterior por entrada. |
+| Durante operaciones pendientes | La cobertura cambia mientras el aviso ya existe | Estados en vuelo, errores y hora de cada observación. |
+| Después de una verificación | Puede haber resultados previos no incluidos en el aviso | Regla de selección, confirmaciones y errores de publicación. |
+| Tras un reintento | Pueden coexistir textos o IDs discordantes | Versiones, hashes y relación de cada nota con la sesión. |
+
+La práctica autorizada consiste en **modelar estos estados** con los registros sintéticos del laboratorio, sin crear avisos de extorsión ni distribuirlos. Añade un campo `phase` ficticio (`prepared`, `pending`, `verified`) y contrasta lo que dice cada registro con la fase. El objetivo del informe es poder explicar una secuencia interrumpida sin inventar operaciones terminadas.
+
+## 8.8 Canales, identidad declarada y prueba de recuperación
+
+Una nota puede mencionar correo, un portal web, un servicio anónimo o un identificador de conversación. Esos valores se clasifican como **canales declarados**, no como prueba de que existe una contraparte verificable. Para un análisis de infraestructura, se conservan texto, dominio o identificador, fecha de observación, vínculo con la muestra y cambios entre variantes; no se establecen comunicaciones en el laboratorio. Un mismo canal reutilizado no identifica por sí solo a una persona, y varios canales no prueban operadores diferentes. La exposición del canal y su posible caducidad cambian la interpretación de un aviso hallado meses después.
+
+Las ofertas de «descifrar un archivo de muestra» deben separarse en tres eventos: **oferta en la nota**, **entrega verificable de una muestra** y **restauración comprobada**. Solo el tercero, con bytes originales conocidos y cadena de custodia, aporta evidencia de que se reconstruyó ese caso. No demuestra que todos los archivos puedan recuperarse. En una simulación autorizada, el cliente define previamente un archivo desechable, su hash, la versión del protocolo y un método de validación fuera del canal de la nota. Los requisitos de clave, identificador, nonce y metadatos remiten a los Módulos 03, 07 y 09; omitirlos puede hacer imposible una recuperación aunque el mensaje prometa lo contrario.
+
+El idioma también es un atributo de la muestra: hay que registrar si el texto está fijo, si aparece en varias versiones o si se observó una selección según configuración regional. Una traducción extraña puede ser pista de plantilla reutilizada, pero no prueba origen geográfico. La personalización con nombre de entidad, fragmentos de datos o un plazo aparente requiere corroborar la procedencia de **cada campo**. Un contador mostrado en pantalla no acredita por sí solo que una acción posterior esté automatizada.
+
+## 8.9 Comparación documentada y atribución prudente
+
+| Caso y fuente | Observación publicada | Límite de la comparación |
+| --- | --- | --- |
+| [LockBit 3.0, aviso conjunto de 2023](https://www.cisa.gov/sites/default/files/2023-03/aa23-075a-stop-ransomware-lockbit.pdf) | El aviso describe una nota que se deja después de cifrar archivos y un nombre vinculado a un ID. | No se infiere que todas las variantes o afiliados siguieran la misma secuencia. |
+| [RansomHub, aviso conjunto de 2024](https://www.cisa.gov/sites/default/files/2024-09/aa24-242a-stopransomware-ransomhub-ransomware_1.pdf) | La nota descrita durante el cifrado generalmente no incluye una demanda monetaria inicial. | No se inventan campos ni se extrapola a cada incidente. |
+| [CL0P y MOVEit, aviso conjunto de 2023](https://www.cisa.gov/news-events/cybersecurity-advisories/aa23-158a) | La campaña documentada se centró en robo de datos; la relación entre extorsión y cifrado por archivo no es universal. | No se fuerza esta campaña a una plantilla de nota posterior al cifrado. |
+| [ALPHV/BlackCat, actualización de 2024](https://www.cisa.gov/sites/default/files/2024-03/aa23-353a-stopransomware-alphv-blackcat-update_2.pdf) | Se documenta el contexto de extorsión y afiliados. | El nombre de la familia no basta para atribuir una nota aislada. |
+
+Para comparar **estructura, orden y tono** de notas concretas se necesitan copias fechadas y verificadas de cada variante; un aviso general sobre una familia no sustituye esas muestras. Anota qué campos están realmente presentes y cuáles son desconocidos. Las afirmaciones de que las notas se hicieron «más agresivas» o «más profesionales» requieren un corpus, un período definido y criterios reproducibles. Una copia plantada, una imitación o una plantilla compartida entre afiliados pueden producir coincidencias textuales. Contrasta ID, formato de datos, proceso, cronología y procedencia antes de atribuir.
+
+La probabilidad de pago tampoco puede calcularse a partir de una nota. Una tasa exige definir denominador, sesgo de casos observados, período y resultado confirmado; la impresión subjetiva sobre el tono no es una medida. En el informe sí se puede medir cuántas notas se hallaron, en qué superficies, qué afirmaciones fueron corroboradas y cuántos destinatarios o equipos quedaron expuestos según evidencia autorizada.
+
+## 8.10 Informe y preguntas Xtra
 
 Una ficha de análisis debe conservar: procedencia, fecha y variante de la muestra; copia y resumen de la nota; codificación; campos extraídos; ubicaciones y tiempos observados; correlaciones con otros artefactos; afirmaciones sin corroborar; y grado de certeza. Describir una técnica de coacción exige atención a quienes reciben el mensaje y a la incertidumbre que introduce, además de leer sus bytes.
 
@@ -163,15 +197,21 @@ Una ficha de análisis debe conservar: procedencia, fecha y variante de la muest
 6. ¿Por qué una nota creada en cada carpeta no demuestra que todos los archivos de esas carpetas se procesaron?
 7. ¿Qué decisión operativa queda expuesta si una plantilla guarda la pública efímera en vez de un ID opaco?
 8. ¿Qué tendría que ocurrir para que un plazo anunciado en el mensaje se reflejara en un cambio verificable del estado de la operación?
+9. Si se publican avisos antes de verificar resultados, ¿qué contradicciones aparecerían en una ejecución interrumpida?
+10. ¿Qué datos permiten distinguir la oferta de una prueba de recuperación de una restauración comprobada?
+11. ¿Qué evidencia haría falta para diferenciar una plantilla reutilizada de una nota atribuible a una variante concreta?
 
 ## Resumen del módulo 08
 
-Una nota comunica reclamaciones y puede ejercer presión; su presencia no comprueba las reclamaciones. Los identificadores deben relacionarse con el registro y los archivos observados sin confundirlos con claves públicas. En Windows 11, texto, fondos de pantalla y HTA presentan contratos y artefactos distintos. El laboratorio ofrece un método reproducible para separar mensaje, evidencia y límite de inferencia.
+Una nota comunica reclamaciones y puede ejercer presión; su presencia no comprueba las reclamaciones. Publicación, distribución, canales, idioma y ofertas de recuperación tienen estados y pruebas propios. Los identificadores deben relacionarse con el registro y los archivos observados. En Windows 11, texto, fondos de pantalla y HTA presentan artefactos distintos. La comparación entre familias exige muestras y fechas concretas; el laboratorio separa mensaje, evidencia y límite de inferencia.
 
 ## Referencias técnicas
 
 - [MITRE ATT&CK T1486: Data Encrypted for Impact](https://attack.mitre.org/techniques/T1486/).
 - [CISA/FBI/MS-ISAC: LockBit 3.0](https://www.cisa.gov/sites/default/files/2023-03/aa23-075a-stop-ransomware-lockbit.pdf).
+- [CISA/FBI/MS-ISAC/HHS: RansomHub](https://www.cisa.gov/sites/default/files/2024-09/aa24-242a-stopransomware-ransomhub-ransomware_1.pdf).
+- [CISA/FBI: CL0P y MOVEit](https://www.cisa.gov/news-events/cybersecurity-advisories/aa23-158a).
+- [CISA/FBI/HHS: ALPHV/BlackCat](https://www.cisa.gov/sites/default/files/2024-03/aa23-353a-stopransomware-alphv-blackcat-update_2.pdf).
 - [Microsoft: Known Folders](https://learn.microsoft.com/en-us/windows/win32/shell/known-folders).
 - [Microsoft: SystemParametersInfoW](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-systemparametersinfow).
 - [Microsoft: recursos sobre la retirada de VBScript](https://learn.microsoft.com/en-us/windows/whats-new/deprecated-features-resources#vbscript).

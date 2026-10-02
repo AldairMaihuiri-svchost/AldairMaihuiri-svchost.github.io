@@ -1,14 +1,16 @@
 ---
-title: "Ransomware Red Teaming — Módulo 10: E/S asíncrona y cobertura por rangos"
-description: "Contratos de OVERLAPPED e IOCP, finalizaciones, cancelación, medición y análisis de rangos con prácticas de solo lectura."
+title: "Ransomware Red Teaming — Módulo 10: Fragmentación lógica y E/S asíncrona"
+description: "Cifrado parcial como objeto de análisis, intervalos de bytes, IOCP y prácticas de solo lectura en Windows 11."
 author: Aldair Maihuiri
 ---
 
-# Módulo 10 — E/S asíncrona y cobertura por rangos
+# Módulo 10 — Fragmentación lógica y E/S asíncrona
+
+En este módulo, **fragmentación** significa que una operación selecciona regiones separadas del contenido de un archivo y deja otras sin tratar. Cuando la operación observada es criptográfica se habla de *cifrado parcial* o *intermitente*. No se trata de la distribución física de un archivo en el volumen. La pregunta central es cómo describir los intervalos seleccionados, confirmar los efectivamente completados y explicar sus efectos sin confundir «bytes omitidos» con «archivo recuperable».
 
 Una llamada a `ReadFile` puede terminar durante la llamada o quedar pendiente. En ambos casos, un programa que usa E/S asíncrona debe saber **a qué solicitud corresponde el resultado, qué búfer sigue ocupado y cuándo puede reutilizarlo**. Poner varias operaciones en vuelo no asegura que concluyan en el orden en que se enviaron, que el dispositivo permanezca ocupado todo el tiempo ni que el rendimiento mejore frente a una lectura sencilla.
 
-Este módulo tiene dos partes conectadas. La primera estudia `OVERLAPPED` e I/O Completion Ports (IOCP) sobre archivos temporales **solo de lectura**. La segunda representa intervalos de bytes en un archivo y mide su cobertura, sin aplicar una transformación criptográfica. El [Módulo 05](Ransomware-Modulo5) introdujo E/S y primitivas de concurrencia, el [06](Ransomware-Modulo6) explicó las colas y los resultados del pipeline, y el [09](Ransomware-Modulo9) fijó los requisitos para describir rangos dentro de un formato. Aquí se comprueba cómo se comportan esas decisiones cuando las operaciones completan o fallan.
+Este módulo conecta la selección de rangos con su ejecución: estudia `OVERLAPPED` e I/O Completion Ports (IOCP) sobre archivos temporales **solo de lectura**, y representa intervalos sin aplicar una transformación criptográfica. El [Módulo 05](Ransomware-Modulo5) introdujo E/S y primitivas de concurrencia, el [06](Ransomware-Modulo6) explicó las colas y los resultados del pipeline, y el [09](Ransomware-Modulo9) fijó los requisitos para describir rangos dentro de un formato. Aquí se comprueba cómo se comportan esas decisiones cuando las operaciones completan o fallan.
 
 ## 10.1 Sincronía, concurrencia y finalización
 
@@ -87,7 +89,7 @@ Las lecturas con `FILE_FLAG_SEQUENTIAL_SCAN` comunican al sistema un patrón pre
 
 Los errores ordinarios y una caída abrupta del proceso dejan evidencias distintas. Si falta un registro tras la caída, no se puede concluir que la operación nunca se presentó o nunca tocó el disco. El Módulo 06 trató esta incertidumbre de las tareas; aquí se añade el estado de la E/S que estaba en vuelo.
 
-## 10.6 Intervalos de bytes y cobertura
+## 10.6 Fragmentación lógica: intervalos y cobertura
 
 Una representación clara de rangos utiliza intervalos semiabiertos `[inicio, fin)` dentro de `[0, tamaño)`. Dos rangos adyacentes, `[0, 10)` y `[10, 20)`, no se solapan; `[0, 10)` y `[5, 15)` sí. Para analizar un plan parcial se calculan, como mínimo: bytes cubiertos únicos, huecos, solapamientos, cantidad de rangos, primer y último offset, y qué parte puede verificarse con los metadatos conservados.
 
@@ -101,6 +103,10 @@ Una representación clara de rangos utiliza intervalos semiabiertos `[inicio, fi
 La cobertura en bytes **no** equivale a inutilidad o recuperabilidad de un formato. ZIP, PDF, imágenes y bases de datos distribuyen datos y estructuras de formas distintas. Un programa puede rechazar un archivo aunque gran parte de su contenido siga accesible mediante otras herramientas; una muestra puede alterar pocos bytes y provocar un gran efecto aparente. La explicación debe distinguir capacidad del lector habitual, extracción parcial y restauración verificada, sin asignar una regla universal a «los primeros 256 KB».
 
 Para archivos de más de 4 GB, todos los offsets y cálculos de longitudes necesitan tipos apropiados y comprobaciones de conversión. Convertir un offset de 64 bits a `DWORD` para decidir el final de un rango puede truncarlo. También hay que evitar `periodo = 0`, incrementos nulos y desbordamientos al sumar longitud más separación.
+
+Un archivo puede ocupar varios *extents* físicos y aun así procesarse íntegro; otro puede estar físicamente contiguo y recibir un plan lógico de intervalos separados. `FSCTL_GET_RETRIEVAL_POINTERS` describe ubicación de asignaciones en disco, una cuestión distinta del conjunto de offsets lógicos de esta práctica. [Microsoft: `FSCTL_GET_RETRIEVAL_POINTERS`](https://learn.microsoft.com/en-us/windows/win32/api/winioctl/ni-winioctl-fsctl_get_retrieval_pointers).
+
+Dividir un archivo en bloques **no implica** cifrado parcial si todos los bloques se procesan. La descripción exige distinguir: regla que selecciona rangos; intervalos seleccionados; solicitudes de E/S aceptadas; intervalos completados; y bytes que permanecieron sin procesar. Un nombre de modo o porcentaje único no permite deducir por sí solo esos cinco conjuntos. MITRE ATT&CK documenta cifrado parcial en INC Ransomware; Microsoft describió segmentos no contiguos en una variante de The Gentlemen. Estos son ejemplos observados, no una regla general de todas las familias. [MITRE: INC Ransomware](https://attack.mitre.org/software/S1139/) · [Microsoft: The Gentlemen](https://www.microsoft.com/en-us/security/blog/2026/05/28/the-gentlemen-ransomware-dissecting-a-self-propagating-go-encryptor/).
 
 ## 10.7 Laboratorio A: finalizaciones y rangos con bytes conocidos
 
@@ -152,6 +158,17 @@ def partial_plan(size, block, gap):
         offset += block + gap
     return result
 
+def compare_plan(planned, terminal):
+    if len(set(planned)) != len(planned) or len(set(terminal)) != len(terminal):
+        raise ValueError("DUPLICATE_INTERVAL")
+    unknown = set(terminal) - set(planned)
+    missing = set(planned) - set(terminal)
+    if unknown:
+        raise ValueError("UNPLANNED_INTERVAL")
+    return (sum(length for _, length in planned),
+            sum(length for _, length in terminal),
+            sorted(missing))
+
 with tempfile.TemporaryDirectory(prefix="module10_") as directory:
     path = Path(directory) / "known.bin"
     path.write_bytes(DATA)
@@ -180,6 +197,8 @@ with tempfile.TemporaryDirectory(prefix="module10_") as directory:
     print("GAP", coverage(len(DATA), [(0, 10), (20, len(DATA) - 20)]))
     partial = partial_plan(len(DATA), BLOCK, BLOCK)
     print("PARTIAL", coverage(len(DATA), partial))
+    print("PLAN_STATUS", compare_plan(partial, partial))
+    print("MISSING_PLANNED", compare_plan(partial, partial[:1] + partial[2:]))
     virtual_size = 5 * 1024**3
     print("LARGE_DESCRIPTOR", coverage(
         virtual_size, [(0, BLOCK), (virtual_size - BLOCK, BLOCK)]))
@@ -190,7 +209,7 @@ with tempfile.TemporaryDirectory(prefix="module10_") as directory:
     os.unlink(path)
 ```
 
-El programa informa `ALL_TERMINAL True`, `HASH_MATCH True` y cobertura completa. El caso `GAP` muestra que un último offset correcto no prueba que no haya huecos. El solapamiento se rechaza. Cambia `SLOTS` entre 1 y 4 y registra tiempo con `time.perf_counter()` si quieres medir este conjunto; el resultado depende de dispositivo, caché y tamaño y no constituye un benchmark universal de IOCP.
+El programa informa `ALL_TERMINAL True`, `HASH_MATCH True` y cobertura completa. `GAP` muestra que un último offset correcto no prueba ausencia de huecos. `PARTIAL` representa huecos previstos; `PLAN_STATUS` confirma que todos los rangos seleccionados figuran como terminados; `MISSING_PLANNED` identifica un rango previsto sin finalización. El solapamiento se rechaza. Cambia `SLOTS` entre 1 y 4 y registra tiempo con `time.perf_counter()` si quieres medir este conjunto; el resultado depende de dispositivo, caché y tamaño y no constituye un benchmark universal de IOCP.
 
 ## 10.8 Laboratorio B: lector IOCP de solo lectura
 
@@ -363,13 +382,24 @@ El laboratorio B agrega una observación de API real de Windows 11 en un archivo
 
 En un error asíncrono, `GetQueuedCompletionStatus` puede devolver `FALSE` junto con un `OVERLAPPED` válido. Esa solicitud llegó a un estado terminal de **fallo**: registra `GetLastError`, offset y longitud; reduce el contador de pendientes y decide si cancelar las restantes. En cambio, `FALSE` con `OVERLAPPED` nulo puede indicar timeout o error de espera sin identificar una petición concreta. No liberes un búfer hasta conocer su resultado terminal. Cuando se solicita `CancelIoEx`, algunas solicitudes aún pueden completarse con éxito y otras con `ERROR_OPERATION_ABORTED`; ambas deben contarse. Si el entorno muestra un error que el ejemplo no recupera, conserva la salida y no lo reinterpretes como corrupción de contenido.
 
-## 10.11 Rangos seleccionados y escala lógica
+## 10.11 Selección fragmentada, contenido y escala lógica
 
 Representa cada rango como intervalo semiabierto `[inicio, fin)`. Para un archivo de tamaño `S`, exige `0 <= inicio <= fin <= S`; ordena y comprueba solapamientos antes de ejecutar E/S. Define si los rangos contiguos se fusionan y si un rango vacío está permitido. El plan es completo cuando la unión de rangos es `[0, S)`; el número de finalizaciones y la suma de longitudes no bastan. Para un plan parcial, calcula tres cantidades separadas: `S` (tamaño lógico), suma de bytes **seleccionados únicos** y bytes **efectivamente completados**. Si faltó una finalización, las dos últimas cifras divergen.
 
 La extensión virtual de más de 4 GiB en el laboratorio A prueba aritmética de offsets y validación de un descriptor **sin reservar 4 GiB ni leer un archivo grande**. No prueba rendimiento, compatibilidad con un sistema FAT32, límites de `SetFilePointerEx`, ni capacidad de recuperación de datos. En un ensayo real se comprueban tamaño y límites del sistema de archivos, acceso efectivo y posibles cambios del archivo mientras se lee. Si el archivo crece o se trunca entre consulta de tamaño y lectura, se registran ambas observaciones y se rechaza la afirmación de cobertura completa bajo un tamaño único.
 
 Los planes parciales deben conservar su semántica entre módulos: el Módulo 09 guarda intervalos exactos y el Módulo 10 comprueba que coincidan con las operaciones terminales. «Primero y último 1 %» requiere especificar redondeo, unidad, qué hacer con archivos pequeños y si dos intervalos se solapan. Un porcentaje puede describir bytes tocados y aun así ocultar que se destruyó un índice al final de un formato. La tabla de resultados debe separar cobertura de bytes de posibilidad de abrir o reconstruir el archivo.
+
+| Patrón visto en una muestra | Pregunta para describirlo con precisión | Limitación de la inferencia |
+| --- | --- | --- |
+| Solo una región inicial | ¿Cuántos bytes y qué regla de tamaño se observaron? | La cabecera puede ser importante, pero no representa todos los formatos. |
+| Regiones en los extremos | ¿Se cruzan en archivos pequeños y cuál prevalece? | Un índice al final no existe en toda clase de archivo. |
+| Segmentos separados | ¿Dónde empiezan, cuánto miden y qué huecos quedan? | La misma cobertura porcentual puede alterar regiones distintas. |
+| Bloques contiguos que cubren todo | ¿Se completaron todos, incluido el último corto? | Esto es procesamiento por bloques, no cifrado parcial. |
+
+La elección de regiones en una muestra se **reconstruye a partir de los offsets observados y la versión del formato**; no se infiere de una supuesta regla óptima. Para evaluar su efecto, utiliza archivos de prueba conocidos de varios formatos y compara cuatro observaciones distintas: bytes cambiados, posibilidad de abrir con un lector normal, extracción parcial con herramienta adecuada y restauración verificada. Si una cabecera permanece intacta, eso no garantiza utilidad; si se altera, tampoco prueba que todo contenido sea irrecuperable. El informe debe identificar la herramienta, versión y resultado, no solo etiquetar «dañado».
+
+Una relación adicional con el Módulo 03 es el **estado criptográfico por región**: al estudiar un caso real, registra si cada segmento tiene un nonce o contexto propio y qué bytes autentica cada etiqueta. El orden en que IOCP entrega finalizaciones no reemplaza la identidad del segmento ni permite deducir que el mismo estado criptográfico sea reutilizable. El laboratorio no implementa cifrado; su mapa de offsets ofrece una base para comprobar que el descriptor del Módulo 09 se corresponde con las operaciones observadas.
 
 ## 10.12 Protocolo de medición reproducible
 
@@ -386,6 +416,38 @@ Un ensayo repetible fija archivo de entrada y hash, tamaño de bloque, número m
 
 Una comparación útil termina con una comprobación de equivalencia: ambas variantes deben leer los mismos intervalos, obtener el mismo resumen de bytes en el mismo orden lógico y llegar a estados terminales comparables. Después se puede discutir tiempo, consumo y huella de E/S. Si una variante omite un bloque, su menor duración no es una ventaja de rendimiento. Ningún número de este módulo pretende ser un benchmark universal de IOCP.
 
+## 10.13 Concurrencia real, red y política de errores
+
+Los cuatro *slots* del ejemplo prueban una invariante, **no** son una recomendación de configuración. Compara 1, 2 y 4 en el mismo archivo temporal y registra solicitudes pendientes, latencia, bytes únicos y tiempo total. Un SSD, un HDD y un recurso SMB pueden responder de forma diferente; tamaño, caché, carga ajena y filtros del sistema cambian el resultado. Un mayor máximo pendiente puede reducir tiempo de espera o aumentar contención. Reporta la curva medida, no una cifra supuestamente universal ni un ajuste para evitar alertas.
+
+En SMB, los tiempos observados incluyen red y servidor, además del cliente. Una lectura corta, una desconexión o una apertura con error requiere registrar origen, ruta, tamaño esperado y estado terminal de cada petición. Un ensayo autorizado impone límites de trabajo y detiene nuevas solicitudes cuando se supera un presupuesto de errores o se pierde el alcance acordado; drena las que ya están en vuelo antes de liberar recursos. `CancelIoEx` es una solicitud de cancelación, no un mecanismo que borra la actividad ya observada. La cancelación también puede llegar tarde y coexistir con finalizaciones exitosas.
+
+| Condición observada | Decisión que debe explicarse | Resultado que debe quedar documentado |
+| --- | --- | --- |
+| Acceso denegado | Omitir entrada o detener el conjunto según alcance | Entrada no cubierta y código de error. |
+| Fallo transitorio conocido | Reintento finito bajo condiciones registradas | Intentos, intervalos y estado final. |
+| Lectura corta o cambio de tamaño | Invalidar el rango y revisar identidad/tamaño | Bytes reales y cobertura pendiente. |
+| Desconexión SMB | Suspender nuevas solicitudes sobre la ruta | Trabajo pendiente, completado y cancelado. |
+| Solicitud de parada | Dejar de enviar y drenar lo aceptado | Estado terminal por offset antes del cierre. |
+
+Las trazas de E/S y los registros de un EDR son evidencia de actividad, no un objetivo de ocultación en este laboratorio. La ausencia de un evento visible puede depender de filtros, pérdida de eventos y ventana de captura; la presencia de IOCP o `NO_BUFFERING` tampoco acredita por sí sola comportamiento malicioso. Evalúa secuencias, alcance de archivos y efectos corroborados. `FILE_FLAG_DELETE_ON_CLOSE` tiene una semántica de ciclo de vida distinta y no aporta nada para verificar cobertura; este curso no lo usa como recurso de limpieza de huellas.
+
+## 10.14 Ejercicio integrador e informe de fragmentación
+
+Usa el archivo temporal del laboratorio A y compara dos planes **analíticos**: `spans(len(DATA))` cubre todo el archivo; `partial_plan(len(DATA), BLOCK, BLOCK)` deja huecos. Conserva la salida del programa, anota el tamaño lógico, lista de pares `(offset, longitud)`, bytes únicos seleccionados y el resultado de `coverage`. El hash `HASH_MATCH` pertenece a la lectura completa reconstruida: no demuestra una transformación de los rangos parciales. Repite quitando un intervalo interior del plan: compara «hueco previsto por diseño» con «rango previsto que no recibió finalización». Son fallos conceptualmente distintos y exigen columnas distintas en el registro.
+
+| Campo del informe | Pregunta que responde |
+| --- | --- |
+| Regla y versión del plan | ¿Cómo se obtuvieron estos intervalos para el tamaño observado? |
+| Intervalos previstos y terminados | ¿Se completó todo lo seleccionado? |
+| Bytes seleccionados únicos / tamaño lógico | ¿Qué fracción del contenido entraba en el plan? |
+| Bytes terminales verificados / bytes previstos | ¿Qué parte del plan concluyó realmente? |
+| Huecos previstos y huecos imprevistos | ¿Qué se omitió según la regla y qué faltó por error? |
+| Hash, identidad de archivo y tiempo | ¿A qué copia y observación corresponde el resultado? |
+| Validación de formato y recuperación | ¿Qué comportamiento comprobable tuvo el archivo de prueba? |
+
+Para un archivo vacío, ambos denominadores pueden ser cero: el informe indica «sin intervalos» en lugar de un porcentaje indefinido. Para el descriptor virtual de 5 GiB se reportan **solo propiedades del plan**, nunca velocidad ni bytes realmente leídos. La relación con el Módulo 09 se demuestra comparando el descriptor serializado con la lista terminal por offset; el lector debe poder señalar exactamente cualquier discrepancia.
+
 ## Xtra:
 
 1. ¿Qué evidencia permitiría a un operador saber que su lector cubrió todos los rangos esperados y no solo los cuatro primeros bloques?
@@ -398,10 +460,13 @@ Una comparación útil termina con una comprobación de equivalencia: ambas vari
 8. ¿Qué condiciones del equipo tendrían que figurar en un informe antes de atribuir una ventaja de rendimiento a IOCP?
 9. ¿Qué estados seguirían abiertos después de solicitar la cancelación y antes de recibir las finalizaciones?
 10. ¿Qué indicaría que un último bloque corto fue rechazado por una política de alineación y no por corrupción de contenido?
+11. ¿Qué diferencia dejaría en el registro un intervalo omitido por la regla de fragmentación frente a uno seleccionado que nunca terminó?
+12. ¿Qué metadatos permiten correlacionar cada segmento con sus condiciones de autenticación sin depender del orden de finalización?
+13. ¿Qué se tendría que observar para afirmar que una variante usó cifrado parcial, en vez de procesar el archivo entero en bloques?
 
 ## Resumen del módulo 10
 
-La corrección de E/S asíncrona depende de identificar cada solicitud, conservar sus recursos hasta el resultado terminal y verificar cobertura por offsets. IOCP comunica finalizaciones, incluidas las fallidas; la cancelación necesita drenar estados. La E/S sin caché introduce restricciones adicionales y no garantiza velocidad. Un plan de rangos debe describirse de manera exacta y medirse con denominadores claros. Los laboratorios separan lectura, finalización y cobertura de cualquier transformación del contenido.
+La fragmentación lógica selecciona intervalos de contenido; no equivale a la distribución física del archivo ni a dividirlo en bloques y procesarlos todos. Su estudio exige distinguir rangos previstos, completados y omitidos, y comprobar por separado efectos sobre formatos y recuperación. La E/S asíncrona necesita asociar cada finalización y error con su offset; la cancelación exige drenar estados. Los laboratorios reproducen cobertura y fallos con lectura de datos de prueba, sin transformar su contenido.
 
 ## Referencias técnicas
 
@@ -411,5 +476,8 @@ La corrección de E/S asíncrona depende de identificar cada solicitud, conserva
 - [Microsoft: File buffering](https://learn.microsoft.com/en-us/windows/win32/fileio/file-buffering).
 - [Microsoft: `CreateFileW`](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilew).
 - [Microsoft: `MapViewOfFile`](https://learn.microsoft.com/en-us/windows/win32/api/memoryapi/nf-memoryapi-mapviewoffile).
+- [Microsoft: `FSCTL_GET_RETRIEVAL_POINTERS`](https://learn.microsoft.com/en-us/windows/win32/api/winioctl/ni-winioctl-fsctl_get_retrieval_pointers).
+- [MITRE ATT&CK: INC Ransomware](https://attack.mitre.org/software/S1139/).
+- [Microsoft Security: The Gentlemen](https://www.microsoft.com/en-us/security/blog/2026/05/28/the-gentlemen-ransomware-dissecting-a-self-propagating-go-encryptor/).
 
 © 2026 Aldair Maihuiri. Todos los derechos reservados. Se permite compartir con atribución al autor. La reproducción sin autorización previa está prohibida.
