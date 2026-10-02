@@ -559,3 +559,7 @@ Enumeration determines **which entries are considered**. Results depend on scope
 To study a real family, connect each claim to a version and source. Record the conditions of analysis, distinguish capability from observed execution, and do not convert an impact hypothesis into a technical fact. Stopping processes and services may relate to files in use, but it is a separate behavior requiring its own evidence.
 
 **Next:** Module 05 — Windows Internals: file I/O, threads, synchronization, and worker groups.
+
+---
+
+© 2026 Aldair Maihuiri. All rights reserved. Sharing with attribution to the author is permitted. Reproduction without prior authorization is prohibited.
