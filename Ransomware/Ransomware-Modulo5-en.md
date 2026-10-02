@@ -662,3 +662,7 @@ This module covers primitives and their lifecycle contracts. Integrating multipl
 - [Microsoft Learn: File Mapping](https://learn.microsoft.com/en-us/windows/win32/memory/file-mapping).
 - [Microsoft Learn: QueryPerformanceCounter](https://learn.microsoft.com/en-us/windows/win32/api/profileapi/nf-profileapi-queryperformancecounter).
 - [The Rust Standard Library: `std::sync`](https://doc.rust-lang.org/std/sync/).
+
+---
+
+© 2026 Aldair Maihuiri. All rights reserved. Sharing with attribution to the author is permitted. Reproduction without prior authorization is prohibited.
