@@ -1,32 +1,26 @@
 ---
 title: "Aldair Maihuiri — Security Research"
-description: "Binary reverse engineering, malware analysis and exploit development by Gino Aldair Maihuiri Romero. LockBit analysis, crackme writeups, YARA rules, ptrace tooling in Rust, and three technical books in progress on malware analysis and code obfuscation."
+description: "Malware analysis and red teamer developer by Gino Aldair Maihuiri Romero. YARA rules, LockBit analysis, ransomware simulation, crackme writeups, and red team tooling."
 author: Aldair Maihuiri
----
-# Aldair Maihuiri — Security Research
-**Gino Aldair Maihuiri Romero**
-My specialization is binary reverse engineering, malware analysis,
-and exploit development — at the assembly and debugger level,
+Aldair Maihuiri — Security Research
+
+Gino Aldair Maihuiri Romero
+
+Malware analysis, red teamer developer,
+at the assembly and debugger level,
 on Linux ELF and Windows PE binaries.
+
 Here is what that looks like in practice:
 
-- Reversed LockBit’s string obfuscation mechanism (affine cipher, stack strings, dynamic API resolution) — documented in a     public writeup
 - Wrote YARA detection rules for LockBit and SolarisLoader, published on YARAhub
-- Simulated ransomware architecture and cryptographic schemes (AES-256, ChaCha20-Poly1305, RSA-OAEP, Multi-Master ECDH) to     drive defensive engineering and mitigation strategies
+  Reversed LockBit's string obfuscation mechanism (affine cipher, stack strings, dynamic API resolution) — documented in a     public writeup
+- Series of modules on Red Teaming — Ransomware Simulation and Mitigation: reproducing architecture, cryptographic schemes     (AES-256, ChaCha20-Poly1305, RSA-OAEP, Multi-Master ECDH), key generation and custody, file enumeration, concurrency and     I/O on Windows, and metadata formats, to drive defensive engineering and mitigation strategies
+- Documented code obfuscation techniques through the official Ghidra training materials
 - Built 5 original crackmes targeting specific obfuscation techniques, solved and documented each one with full assembly       analysis in English and Spanish
-- Implemented ptrace tooling in Rust: Zero Flag hijacking and SSP bypass via stack canary manipulation
-- Working toward OSED (EXP-301) — building Linux exploit development proficiency from a Windows RE background Systems          engineering
-Systems engineering student · Lima, Peru
----
-## Books in progress
+- Developed red team tooling
 
-- **The Art of Obfuscation**
-  A technical study of code obfuscation techniques — from stack strings and XOR
-  encoding to dynamic API resolution and anti-debug primitives. Grounded in
-  real malware samples and purpose-built crackmes designed to isolate each technique.
-  
-- **[Reserved]**
-  Second book in progress. Title and subject withheld pending publication.
+Systems engineering student · Lima, Peru
+
 ---
 ## Malware analysis
 - **[LockBit Ransomware — Static Reverse Engineering Writeup](/lockbit-ransomware-analysis/)**
