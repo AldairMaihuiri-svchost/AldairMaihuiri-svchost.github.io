@@ -21,6 +21,23 @@ Here is what that looks like in practice:
 Systems engineering student · Lima, Peru
 
 ---
+## 🔍 YARA Rules
+
+Detection rules I write from my malware analysis work, published on YARAhub (abuse.ch). They are live on YARAify in *hunting* mode.
+
+| Rule | Published (UTC) | Matches |
+|---|---|---|
+| `SH_Downloader_Vcimanagement_Observed` | 2026-10-03 | 0 |
+| `SH_Downloader_MultiArch_Svc_Hunt` | 2026-10-03 | 0 |
+| `SolarisLoader_concatenated_api_dynamic_resolution` | 2026-10-03 | 0 |
+| `LockBit_mw_resolve_api_call_pattern` | 2026-10-03 | 1 |
+
+### Details
+
+- **SolarisLoader**: detects the loader through a table of concatenated API names and a hardcoded identifier. The binary      has no import table and resolves its APIs at runtime.
+- **LockBit**: detects the dynamic API resolution pattern from the LockBit sample I analyzed.
+- **SH_Downloader_***: rules for observed downloaders (the `Vcimanagement` variant and a multi-architecture variant).
+---
 ## Malware analysis
 - **[LockBit Ransomware — Static Reverse Engineering Writeup](/lockbit-ransomware-analysis/)**
 
