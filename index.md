@@ -2,9 +2,8 @@
 title: "Aldair Maihuiri — Security Research"
 description: "Malware analysis and red teamer developer by Gino Aldair Maihuiri Romero. YARA rules, LockBit analysis, ransomware simulation, crackme writeups, and red team tooling."
 author: Aldair Maihuiri
-Aldair Maihuiri — Security Research
 ---
-Gino Aldair Maihuiri Romero
+Aldair Maihuiri — Security Research
 
 Malware analysis, red teamer developer,
 at the assembly and debugger level,
