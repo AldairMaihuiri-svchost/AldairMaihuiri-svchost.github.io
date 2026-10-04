@@ -43,11 +43,22 @@ Detection rules I write from my malware analysis work, published on YARAhub (abu
 ## Malware analysis
 - **[LockBit Ransomware — Static Reverse Engineering Writeup](/lockbit-ransomware-analysis/)**
 
-  The technical research, reverse engineering, analysis, reasoning, scripting, and writing were carried out entirely by me.    Large Language Models (LLMs) were used solely to correct spelling and grammatical errors.
+  The technical research, reverse engineering, analysis, reasoning, scripting, and writing were carried out entirely by me.    Large Language Models (LLMs) were used        solely to correct spelling and grammatical errors.
   I hope you enjoy reading it as much as I enjoyed writing it.
 
   Greetings,
   Sv-chost
+- **[Configurable Loader, Infostealer and Cryptocurrency Clipper — Static Reverse Engineering Writeup](/loader-infostealer-analysis/)**  
+  Spanish version: static reversing notes covering the outer loader, embedded DLL injection, anti-VM checks, HTTPS C2, runtime configuration, clipboard replacement, data    collection, screen capture, and output flow.
+
+- **[Configurable Loader, Infostealer and Cryptocurrency Clipper — Static Reverse Engineering Writeup (English)](/loader-infostealer-analysis-en/)**  
+  English version of the static reverse engineering write-up.
+
+
+  The write-ups were prepared from malware-analysis notes and reviewed technical evidence. A Large Language Model assisted with translation, structure, and copy-editing;    the author reviewed the final text and is responsible for its publication.
+
+Greetings,  
+Sv-chost
 
 - **[LockBit String Deobfuscation — Affine Cipher DLL Loading](lockbit-string-deobfuscation)**
   Public teaser: how LockBit encrypts DLL names on the stack to evade IAT
