@@ -29,10 +29,10 @@ Detection rules I write from my malware analysis work, published on YARAhub (abu
 
 | Rule | Published (UTC) | Matches |
 |---|---|---|
-| `SH_Downloader_Vcimanagement_Observed` | 2026-10-03 | 0 |
-| `SH_Downloader_MultiArch_Svc_Hunt` | 2026-10-03 | 0 |
-| `SolarisLoader_concatenated_api_dynamic_resolution` | 2026-10-03 | 0 |
-| `LockBit_mw_resolve_api_call_pattern` | 2026-10-03 | 1 |
+| `SH_Downloader_Vcimanagement_Observed` | 202x-10-03 | 0 |
+| `SH_Downloader_MultiArch_Svc_Hunt` | 202x-10-03 | 0 |
+| `SolarisLoader_concatenated_api_dynamic_resolution` | 202x-10-03 | 0 |
+| `LockBit_mw_resolve_api_call_pattern` | 202x-10-03 | 1 |
 
 ### Details
 
