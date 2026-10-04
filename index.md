@@ -48,17 +48,12 @@ Detection rules I write from my malware analysis work, published on YARAhub (abu
 
   Greetings,
   Sv-chost
-- **[Configurable Loader, Infostealer and Cryptocurrency Clipper — Static Reverse Engineering Writeup](/loader-infostealer-analysis/)**  
-  Spanish version: static reversing notes covering the outer loader, embedded DLL injection, anti-VM checks, HTTPS C2, runtime configuration, clipboard replacement, data    collection, screen capture, and output flow.
+  
+- **[Configurable Loader, Infostealer and Cryptocurrency Clipper — Static Reverse Engineering Writeup](analisisdemalwarestealerloader/writeup_loader_infostealer_en)**  
+  ([versión en español](analisisdemalwarestealerloader/writeup_loader_infostealer))  
+  Static reverse engineering of a configurable x64 loader that reconstructs and injects an embedded DLL, performs anti-VM checks, receives HTTPS C2 configuration, and       enables clipboard replacement, data collection, screen capture, and second-stage task handling.
 
-- **[Configurable Loader, Infostealer and Cryptocurrency Clipper — Static Reverse Engineering Writeup (English)](/loader-infostealer-analysis-en/)**  
-  English version of the static reverse engineering write-up.
-
-
-  The write-ups were prepared from malware-analysis notes and reviewed technical evidence. A Large Language Model assisted with translation, structure, and copy-editing;    the author reviewed the final text and is responsible for its publication.
-
-Greetings,  
-Sv-chost
+  The write-up was prepared from malware-analysis notes and reviewed technical evidence. A Large Language Model assisted with translation, structure, and copy-editing;      the author reviewed the final text and is responsible for its publication.
 
 - **[LockBit String Deobfuscation — Affine Cipher DLL Loading](lockbit-string-deobfuscation)**
   Public teaser: how LockBit encrypts DLL names on the stack to evade IAT
