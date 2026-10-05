@@ -1,6 +1,6 @@
 ---
 title: "Aldair Maihuiri — Security Research"
-description: "Malware analysis and red teamer developer by Gino Aldair Maihuiri Romero. YARA rules, LockBit analysis, ransomware simulation, crackme writeups, and red team tooling."
+description: "Malware analysis and red team development by Gino Aldair Maihuiri Romero. YARA rules, LockBit analysis, loader/infostealer/clipper analysis, ransomware simulation, crackme writeups, and red team tooling."
 author: Aldair Maihuiri
 ---
 # Aldair Maihuiri — Security Research
@@ -13,11 +13,12 @@ Malware analysis and red team development at the assembly and debugger level, on
 
 Here is what that looks like in practice:
 
-- Wrote YARA detection rules for LockBit and SolarisLoader, published on YARAhub
-  Reversed LockBit's string obfuscation mechanism (affine cipher, stack strings, dynamic API resolution) — documented in a     public writeup
-- Series of modules on Red Teaming — Ransomware Simulation and Mitigation: reproducing architecture, cryptographic schemes     (AES-256, ChaCha20-Poly1305, RSA-OAEP, Multi-Master ECDH), key generation and custody, file enumeration, concurrency and     I/O on Windows, and metadata formats, to drive defensive engineering and mitigation strategies
+- Wrote 5 YARA detection rules covering LockBit, SolarisLoader, observed downloaders, and an x64 loader with infostealer and cryptocurrency clipper, published on YARAhub
+- Reversed LockBit's string obfuscation mechanism (affine cipher, stack strings, dynamic API resolution) — documented in a public writeup
+- Statically analyzed a configurable x64 loader that reconstructs and injects an embedded DLL, with anti-VM checks, HTTPS C2 configuration, a cryptocurrency clipper, screen capture, and second-stage execution
+- Series of modules on Red Teaming — Ransomware Simulation and Mitigation: reproducing architecture, cryptographic schemes (AES-256, ChaCha20-Poly1305, RSA-OAEP, Multi-Master ECDH), key generation and custody, file enumeration, concurrency and I/O on Windows, and metadata formats, to drive defensive engineering and mitigation strategies
 - Documented code obfuscation techniques through the official Ghidra training materials
-- Built 5 original crackmes targeting specific obfuscation techniques, solved and documented each one with full assembly       analysis in English and Spanish
+- Built 5 original crackmes targeting specific obfuscation techniques, solved and documented each one with full assembly analysis in English and Spanish
 - Developed red team tooling
 
 Systems engineering student · Lima, Peru
@@ -33,34 +34,41 @@ Detection rules I write from my malware analysis work, published on YARAhub (abu
 | `SH_Downloader_MultiArch_Svc_Hunt` | 202x-10-03 | 0 |
 | `SolarisLoader_concatenated_api_dynamic_resolution` | 202x-10-03 | 0 |
 | `LockBit_mw_resolve_api_call_pattern` | 202x-10-03 | 1 |
+| `ConfigurableLoaderInfostealer_custom_decoder_embedded_dll` | 202x-10-04 | 0 |
 
 ### Details
 
-- **SolarisLoader**: detects the loader through a table of concatenated API names and a hardcoded identifier. The binary      has no import table and resolves its APIs at runtime.
+- **SolarisLoader**: detects the loader through a table of concatenated API names and a hardcoded identifier. The binary has no import table and resolves its APIs at runtime.
 - **LockBit**: detects the dynamic API resolution pattern from the LockBit sample I analyzed.
 - **SH_Downloader_***: rules for observed downloaders (the `Vcimanagement` variant and a multi-architecture variant).
+- **ConfigurableLoaderInfostealer**: detects the outer loader by combining two sample-specific artifacts: the custom 64-symbol decoder alphabet and a static fragment of the encoded internal DLL blob. It is a signature for this loader, not a generic infostealer rule.
 ---
 ## Malware analysis
 - **[LockBit Ransomware — Static Reverse Engineering Writeup](/lockbit-ransomware-analysis/)**
 
-  The technical research, reverse engineering, analysis, reasoning, scripting, and writing were carried out entirely by me.    Large Language Models (LLMs) were used        solely to correct spelling and grammatical errors.
+  The technical research, reverse engineering, analysis, reasoning, scripting, and writing were carried out entirely by me. Large Language Models (LLMs) were used solely to correct spelling and grammatical errors.
   I hope you enjoy reading it as much as I enjoyed writing it.
 
   Greetings,
   Sv-chost
-  
-- **[Configurable Loader, Infostealer and Cryptocurrency Clipper — Static Reverse Engineering Writeup](analisisdemalwarestealerloader/writeup_loader_infostealer_en)**  
-  ([versión en español](analisisdemalwarestealerloader/writeup_loader_infostealer))  
-  Static reverse engineering of a configurable x64 loader that reconstructs and injects an embedded DLL, performs anti-VM checks, receives HTTPS C2 configuration, and       enables clipboard replacement, data collection, screen capture, and second-stage task handling.
 
-  The write-up was prepared from malware-analysis notes and reviewed technical evidence. A Large Language Model assisted with translation, structure, and copy-editing;      the author reviewed the final text and is responsible for its publication.
+- **[Configurable Loader, Infostealer and Cryptocurrency Clipper — Static Reverse Engineering Writeup](analisisdemalwarestealerloader/writeup_loader_infostealer_en)**
+  ([versión en español](analisisdemalwarestealerloader/writeup_loader_infostealer))
+  Static reverse engineering of a configurable x64 loader that decodes, decompresses, and reconstructs an embedded DLL and injects it into a remote process. The DLL       performs anti-VM checks, receives HTTPS C2 configuration (obfuscated with XOR `0xA2`), and, depending on that configuration, enables a cryptocurrency clipper, screen    capture, browser and application data collection, registry queries, and second-stage execution. Not confirmed as a coinminer. Includes the companion YARA rule.
+
+  The write-up was prepared from malware-analysis notes and reviewed technical evidence. A Large Language Model assisted with translation, structure, and copy-editing;    the author reviewed the final text and is responsible for its publication.
 
 - **[LockBit String Deobfuscation — Affine Cipher DLL Loading](lockbit-string-deobfuscation)**
-  Public teaser: how LockBit encrypts DLL names on the stack to evade IAT
-  detection, the affine cipher reversed step by step, and a Python script
-  replicating the decryption. The decryption scripts, full function analysis,
-  and the complete 11-block breakdown are reserved for the write
-  *LockBit Ransomware — Complete Static and Dynamic Analysis*.
+  Public teaser: how LockBit encrypts DLL names on the stack to evade IAT detection, the affine cipher reversed step by step, and a Python script replicating the decryption. The decryption scripts, full function analysis, and the complete 11-block breakdown are reserved for the write-up *LockBit Ransomware — Complete Static and Dynamic Analysis*.
+---
+## Red team tools and sources
+Red team tooling and source code from my work, available in the repository:
+
+- 🔧 **[Red teamer tools](https://github.com/AldairMaihuiri-svchost/AldairMaihuiri-svchost.github.io/tree/main/Red%20teamer%20tools)**
+  Source code and red team tools, alongside the site material.
+- 📂 [Full repository — AldairMaihuiri-svchost.github.io](https://github.com/AldairMaihuiri-svchost/AldairMaihuiri-svchost.github.io/tree/main)
+---
+(… the rest of the index stays the same: Red Teaming — Ransomware Simulation and Mitigation, Cryptography research, Ghidra: obfuscated binaries, Crackme writeups, Tooling, Detection engineering, Elsewhere)
 ---
 ## Red Teaming — Ransomware Simulation and Mitigation
 A series focused on reproducing real-world ransomware techniques and tactics in a
