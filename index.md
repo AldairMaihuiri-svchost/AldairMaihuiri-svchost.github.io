@@ -42,6 +42,7 @@ Detection rules I write from my malware analysis work, published on YARAhub (abu
 - **LockBit**: detects the dynamic API resolution pattern from the LockBit sample I analyzed.
 - **SH_Downloader_***: rules for observed downloaders (the `Vcimanagement` variant and a multi-architecture variant).
 - **ConfigurableLoaderInfostealer**: detects the outer loader by combining two sample-specific artifacts: the custom 64-symbol decoder alphabet and a static fragment of the encoded internal DLL blob. It is a signature for this loader, not a generic infostealer rule.
+
 ---
 ## Malware analysis
 - **[LockBit Ransomware — Static Reverse Engineering Writeup](/lockbit-ransomware-analysis/)**
