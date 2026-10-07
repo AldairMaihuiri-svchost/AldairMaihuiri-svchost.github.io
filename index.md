@@ -14,7 +14,7 @@ Malware analysis and red team development at the assembly and debugger level, on
 
 Here is what that looks like in practice:
 
-- Wrote 5 YARA detection rules covering LockBit, SolarisLoader, observed downloaders, and an x64 loader with infostealer and cryptocurrency clipper, published on YARAhub
+- Wrote  YARA detection rules covering LockBit, SolarisLoader, observed downloaders, and an x64 loader with infostealer and cryptocurrency clipper, published on YARAhub
 - Reversed LockBit's string obfuscation mechanism (affine cipher, stack strings, dynamic API resolution) — documented in a public writeup
 - Statically analyzed a configurable x64 loader that reconstructs and injects an embedded DLL, with anti-VM checks, HTTPS C2 configuration, a cryptocurrency clipper, screen capture, and second-stage execution
 - Series of modules on Red Teaming — Ransomware Simulation and Mitigation: reproducing architecture, cryptographic schemes (AES-256, ChaCha20-Poly1305, RSA-OAEP, Multi-Master ECDH), key generation and custody, file enumeration, concurrency and I/O on Windows, and metadata formats, to drive defensive engineering and mitigation strategies
@@ -25,18 +25,6 @@ Here is what that looks like in practice:
 Systems engineering student · Lima, Peru
 
 ---
-
-## YARA Rules
-
-Detection rules I write from my malware analysis work, published on YARAhub (abuse.ch). They are live on YARAify in *hunting* mode.
-
-| Rule | Published (UTC) | Matches |
-|---|---|---|
-| `SH_Downloader_Vcimanagement_Observed` | 202x-10-03 | 0 |
-| `SH_Downloader_MultiArch_Svc_Hunt` | 202x-10-03 | 0 |
-| `SolarisLoader_concatenated_api_dynamic_resolution` | 202x-10-03 | 0 |
-| `LockBit_mw_resolve_api_call_pattern` | 202x-10-03 | 1 |
-| `ConfigurableLoaderInfostealer_custom_decoder_embedded_dll` | 202x-10-04 | 0 |
 
 ### Details
 
