@@ -5,8 +5,9 @@ author: Aldair Maihuiri
 ---
 
 # Aldair Maihuiri — Security Research
-Member of the **Carnival Threads** research group.
 Systems Engineering student (3rd cycle).
+
+Member of the **Carnival Threads** research group.
 
 Malware analysis and red team development at the assembly and debugger level, on Linux ELF and Windows PE binaries.
 
