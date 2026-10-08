@@ -5,7 +5,7 @@ author: Aldair Maihuiri
 ---
 
 # Aldair Maihuiri — Security Research
-Systems Engineering student (3rd cycle).
+**Sv-chost** Systems Engineering student (3rd cycle).
 
 Member of the **Carnival Threads** research group.
 
