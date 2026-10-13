@@ -28,9 +28,11 @@ That was the reason for uploading the Red Team modules on ransomware to this pro
 With nothing more to say, here you can find topics on cracking, obfuscation, development and, coming soon, threat mitigation. And last but not least, cryptography. I clarify from the outset that I am not someone who has worked professionally in cybersecurity, malware analysis or any similar field, and I hope not to offend those who are truly on the “battlefield” with my way of thinking: I am just an early-semester student who learns some topics on their own.
 Finally, I leave you with a few phrases I have written that are part of the book I am still writing.
 
-- I wonder how we protect ourselves from something we do not know? And those who think differently may be right, but I believe that seeing something is good.
-- I don’t want to know how it is made, but how it is broken.
-- One day not too far away I will crypto-obfuscate the sun just to cause an eclipse.
+"I wonder how we protect ourselves from something we do not know? And those who think differently may be right, but I believe that seeing something is good."
+
+"I don’t want to know how it is made, but how it is broken."
+
+"One day not too far away I will crypto-obfuscate the sun just to cause an eclipse."
 
 Here is what that looks like in practice:
 
