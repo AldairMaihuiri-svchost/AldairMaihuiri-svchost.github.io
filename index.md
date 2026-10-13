@@ -20,6 +20,11 @@ Before you continue reading the profile, I want to make clear the reasons behind
 People should keep their photos backed up in a social media account—it is easier to recover an account than 20 GB of encrypted photos—and, above all, always maintain backups. The question is not whether to pay or not, but to reach an agreement when possible. From knowing a tiny part of ransomware architecture, I know that sometimes entire batches are encrypted with the same key, which allows progressive agreements: pay and have them decrypt the data in parts, of course as a last resort and only if the affected person decides so. This way one avoids the risk of paying the full amount and the attacker disappearing without releasing anything (because there are also those who do not even possess the key and still demand the money, playing with the victim’s mind).
 That was the reason for uploading the Red Team modules on ransomware to this profile: to cover both the red and blue team sides in order to mitigate it. I do not claim that everything is perfect; it is an open project, like everything you will find here. If at any point you detect inaccurate information or a serious error on my part, comment directly so it can be reviewed. In fact, a large part of my writeups include the mistakes I made in the process, whether solving a crackme, analyzing a sample, etc.
 With nothing more to say, here you can find topics on cracking, obfuscation, development and, coming soon, threat mitigation. And last but not least, cryptography. I clarify from the outset that I am not someone who has worked professionally in cybersecurity, malware analysis or any similar field, and I hope not to offend those who are truly on the “battlefield” with my way of thinking: I am just an early-semester student who learns some topics on their own.
+Finally, I leave you with a few phrases I have written that are part of the book I am still writing.
+
+I wonder how we protect ourselves from something we do not know? And those who think differently may be right, but I believe that seeing something is good.
+I don’t want to know how it is made, but how it is broken.
+One day not too far away I will crypto-obfuscate the sun just to cause an eclipse.
 
 Here is what that looks like in practice:
 
