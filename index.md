@@ -10,7 +10,7 @@ author: Aldair Maihuiri
 
 Systems Engineering student (3rd cycle) · Lima, Peru · Member of the **Carnival Threads** research group
 
-**Looking for:** remote junior roles in malware analysis, reverse engineering, detection engineering, or low-level programming (Rust / Python).
+**Looking for:** remote junior roles in malware analysis, reverse engineering, detection engineering, or programming (C / C++ / Rust).
 **Contact:** [axlaldair6@gmail.com](mailto:axlaldair6@gmail.com) · [LinkedIn](https://www.linkedin.com/in/AldairMaihuiri) · [GitHub](https://github.com/AldairMaihuiri-svchost)
 **Languages:** Spanish (native) · English (technical reading; writing with translation tools)
 
