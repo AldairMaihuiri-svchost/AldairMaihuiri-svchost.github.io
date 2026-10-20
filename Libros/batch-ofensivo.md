@@ -1,101 +1,91 @@
 ---
 title: "Batch Ofensivo — Aldair Maihuiri"
-description: "Free book on offensive Batch scripting 
-for Windows red team. File system, reconnaissance, 
-and persistence from scratch."
+description: "Libro gratuito de scripting Batch 
+ofensivo para Windows. Sistema de archivos, 
+reconocimiento y persistencia desde cero."
 author: Aldair Maihuiri
 ---
 
 # Batch Ofensivo
 ## Scripts de Windows para Red Team desde Cero
 
-**Aldair Maihuiri (Sv-chost)** · Free · 2025
+**Aldair Maihuiri (Sv-chost)** · Gratuito · 2025
 
-A practical introduction to offensive Batch scripting 
-on Windows. No prior scripting experience required. 
-By the end, you will have built three working tools: 
-an automated recon script, a minimal dropper with 
-persistence, and a file watcher.
+Introducción práctica al scripting Batch ofensivo 
+en Windows. No se requiere experiencia previa 
+en scripting. Al terminar habrás construido tres 
+herramientas funcionales: un script de reconocimiento 
+automático, un dropper mínimo con persistencia, 
+y un file watcher.
 
-Written in Spanish. Intended for beginners entering 
-red team development.
-
-[**Download PDF**](Batch_Ofensivo.pdf)
+[**Descargar PDF**](Batch_Ofensivo.pdf)
 
 ---
 
-## Contents
+## Contenido
 
-**Part I — The Environment**
-- Chapter 1: Why Batch matters in red team — 
-  Living off the Land, cmd.exe, first script
-- Chapter 2: Batch grammar — variables, 
-  environment vars, conditionals, loops, 
-  flow control, silencing output
+**Parte I — El Terreno**
+- Capítulo 1: Por qué Batch importa en red team —
+  Living off the Land, cmd.exe, primer script,
+  ocultar ventana de consola
+- Capítulo 2: La gramática del Batch — variables,
+  variables de entorno, argumentos posicionales,
+  condicionales, bucles, saltos, silenciar salida
 
-**Part II — File System**
-- Chapter 3: Creating and writing files — 
-  redirection operators, overwrite without prompt
-- Chapter 4: Reading and searching — 
-  TYPE, FINDSTR, FOR /F
-- Chapter 5: Moving, copying, renaming, 
-  deleting — COPY /Y, MOVE, REN, DEL, ROBOCOPY
-- Chapter 6: Navigation and directories — 
-  CD, MD, RD, DIR with flags, recursive search
+**Parte II — Sistema de Archivos**
+- Capítulo 3: Crear y escribir archivos —
+  operadores de redirección, sobreescribir
+  sin confirmación, archivos de log con timestamp
+- Capítulo 4: Leer y buscar — TYPE, FINDSTR,
+  FOR /F, parseo línea a línea
+- Capítulo 5: Mover, copiar, renombrar y borrar —
+  COPY /Y, MOVE, REN, DEL con flags,
+  XCOPY, ROBOCOPY
+- Capítulo 6: Navegación y directorios —
+  CD, MD, RD, DIR con flags, búsqueda recursiva
 
-**Part III — Reconnaissance**
-- Chapter 7: Recon with Batch — WHOAMI, 
-  SYSTEMINFO, NET USER, IPCONFIG, NETSTAT, 
-  TASKLIST, REG QUERY
+**Parte III — Reconocimiento**
+- Capítulo 7: Reconocimiento con Batch —
+  WHOAMI /ALL, SYSTEMINFO, NET USER,
+  NET LOCALGROUP, IPCONFIG, ARP, NETSTAT,
+  TASKLIST, SC QUERY, REG QUERY
 
-**Part IV — Persistence**
-- Chapter 8: Surviving reboot — Startup folder, 
-  Run Keys via REG ADD (HKCU vs HKLM), 
-  SCHTASKS (ONSTART, ONLOGON, interval)
+**Parte IV — Persistencia**
+- Capítulo 8: Sobrevivir al reinicio —
+  carpeta Startup, Run Keys con REG ADD
+  (HKCU vs HKLM), SCHTASKS con triggers
+  ONSTART, ONLOGON e intervalo
 
-**Part V — Projects**
-- Chapter 9: Three complete tools —
-  automated recon output, minimal dropper 
-  with persistence, file watcher loop
+**Parte V — Proyectos**
+- Capítulo 9: Tres herramientas completas —
+  recon automático con salida en archivo,
+  dropper mínimo con persistencia vía Run Key,
+  file watcher en bucle
 
 ---
 
-## Who this is for
+## Para quién es
 
-Someone who knows Windows at user level and has 
-never written a script. Not for people who already 
-know PowerShell or Python.
+Alguien que conoce Windows a nivel usuario y nunca 
+ha escrito un script. No está dirigido a personas 
+que ya conocen PowerShell o Python.
 
-The book does not use generic filenames or 
-business-context examples. All paths, variables, 
-and file names reflect a real malware analysis 
-and red team environment:
-`samples\`, `payloads\`, `dropper.bat`, 
+El libro no usa nombres de archivo genéricos ni 
+ejemplos de contexto empresarial. Todas las rutas, 
+variables y nombres de archivo reflejan un entorno 
+real de análisis de malware y red team:
+`samples\`, `payloads\`, `dropper.bat`,
 `recon_2025-01-14.txt`, `%APPDATA%\svchost\`.
 
 ---
 
-## Series
+## Licencia
 
-This is the first book in a planned series on 
-offensive Windows development.
-
-| # | Title | Status |
-|---|---|---|
-| 1 | Batch Ofensivo | Free — available now |
-| 2 | PowerShell Ofensivo | In progress |
-| 3 | El Arte de la Ofuscación | In progress |
-| 4 | Desarrollo Ofensivo en C | Planned |
-
----
-
-## License
-
-Free to download and share without modification 
-and for non-commercial use.
+Libre para descargar y compartir sin modificación 
+y sin fines comerciales.
 
 © 2025 Gino Aldair Maihuiri Romero
 
 ---
 
-[← Back to index](../)
+[← Volver al índice](../)
