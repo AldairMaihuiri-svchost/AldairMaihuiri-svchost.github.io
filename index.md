@@ -45,6 +45,28 @@ I analyze Windows PE and Linux ELF malware at the assembly and debugger level, t
 
 ---
 
+## Books
+
+Technical books on offensive Windows development. 
+Written in Spanish. Free and paid.
+
+- **[Batch Ofensivo — Scripts de Windows para Red 
+  Team desde Cero](Libros/batch-ofensivo)**
+
+  Practical introduction to offensive Batch scripting: 
+  file system operations, reconnaissance, and 
+  persistence from scratch. No prior scripting 
+  experience required. Three working tools built 
+  across nine chapters.
+  Free · PDF · Spanish · 2025
+
+| # | Title | Status |
+|---|---|---|
+| 1 | [Batch Ofensivo](Libros/batch-ofensivo) | Free — available |
+...
+
+---
+
 ## Malware analysis
 
 - **[LockBit Ransomware — Static Reverse Engineering Writeup](lockbit-ransomware-analysis/)**
