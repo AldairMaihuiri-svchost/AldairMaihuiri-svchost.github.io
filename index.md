@@ -58,7 +58,7 @@ Written in Spanish. Free and paid.
   persistence from scratch. No prior scripting 
   experience required. Three working tools built 
   across nine chapters.
-  Free · PDF · Spanish · 2025
+  Free · PDF · Spanish · 2026
 
 | # | Title | Status |
 |---|---|---|
