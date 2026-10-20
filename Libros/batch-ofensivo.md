@@ -9,7 +9,7 @@ author: Aldair Maihuiri
 # Batch Ofensivo
 ## Scripts de Windows para Red Team desde Cero
 
-**Aldair Maihuiri (Sv-chost)** · Gratuito · 2025
+**Aldair Maihuiri (Sv-chost)** · Gratuito · 2026
 
 Introducción práctica al scripting Batch ofensivo 
 en Windows. No se requiere experiencia previa 
@@ -70,8 +70,7 @@ Alguien que conoce Windows a nivel usuario y nunca
 ha escrito un script. No está dirigido a personas 
 que ya conocen PowerShell o Python.
 
-El libro no usa nombres de archivo genéricos ni 
-ejemplos de contexto empresarial. Todas las rutas, 
+Todas las rutas, 
 variables y nombres de archivo reflejan un entorno 
 real de análisis de malware y red team:
 `samples\`, `payloads\`, `dropper.bat`,
@@ -84,7 +83,7 @@ real de análisis de malware y red team:
 Libre para descargar y compartir sin modificación 
 y sin fines comerciales.
 
-© 2025 Gino Aldair Maihuiri Romero
+© 2026 Gino Aldair Maihuiri Romero
 
 ---
 
