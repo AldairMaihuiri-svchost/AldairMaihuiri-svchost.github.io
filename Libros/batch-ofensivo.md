@@ -1,6 +1,6 @@
 ---
 title: "Batch Ofensivo — Aldair Maihuiri"
-description: "Libro gratuito de scripting Batch para Windows en un entorno de análisis de malware y Red Team. Sistema de archivos, reconocimiento y persistencia desde cero."
+description: "Libro gratuito de scripting Batch para Windows en un entorno de análisis de malware y Red Team. Bucles, sistema de archivos, escritura binaria, reconocimiento y persistencia desde cero."
 author: "Aldair Maihuiri"
 ---
 
@@ -8,11 +8,14 @@ author: "Aldair Maihuiri"
 
 ## Scripts de Windows para Red Team desde Cero
 
-**Aldair Maihuiri (Sv-chost)** · Gratuito · 2026
+**Aldair Maihuiri (Sv-chost)** · Gratuito · 2026  
+**Edición ampliada · 116 páginas**
 
 Introducción práctica al scripting Batch en Windows, con ejemplos situados en un entorno de análisis de malware y Red Team. No se requiere experiencia previa en scripting.
 
 El libro avanza desde los primeros comandos hasta tres proyectos de laboratorio: un recolector de reconocimiento local, un dropper mínimo con persistencia mediante una Run Key y un file watcher por sondeo.
+
+Esta edición incorpora bucles por cantidad, por condición y de duración abierta, además de un laboratorio de escritura binaria con sobrescritura parcial y total de archivos sintéticos.
 
 [**Descargar el libro en PDF**](Batch_Ofensivo.pdf)
 
@@ -22,7 +25,7 @@ El libro avanza desde los primeros comandos hasta tres proyectos de laboratorio:
 
 ### Prefacio
 
-Cómo trabajar con los ejemplos y preparar el laboratorio mínimo.
+Cómo trabajar con los ejemplos, preparar el laboratorio mínimo y comprobar los resultados de cada práctica.
 
 ### Parte I — Entender el Terreno
 
@@ -30,12 +33,12 @@ Cómo trabajar con los ejemplos y preparar el laboratorio mínimo.
   Herramientas presentes en Windows, funcionamiento de cmd.exe, diferencias entre .bat y .cmd, primer script, ejecución, códigos de salida y comportamiento de la ventana de consola.
 
 - **Capítulo 2: La gramática del Batch**  
-  SET, variables de entorno, argumentos, ubicación del script, IF, comprobación de archivos y directorios, FOR, expansión de variables, etiquetas, subrutinas y redirección de errores.
+  SET, variables de entorno, argumentos, ubicación del script, IF, comprobación de archivos y directorios, FOR, expansión de variables, etiquetas, subrutinas y redirección de errores. Bucles numéricos con FOR /L, creación de veinte carpetas con nombres seudoaleatorios, comprobación de colisiones, repetición por condición, bucles continuos, parada manual con Ctrl+C, señales mediante archivos, esperas con TIMEOUT, bucles anidados y control de errores.
 
 ### Parte II — Dominando el Sistema de Archivos
 
 - **Capítulo 3: Crear y escribir archivos**  
-  Redirección con > y >>, escritura de varias líneas, comprobación de errores, archivos vacíos, caracteres de control, fecha y hora, captura de resultados y registros de actividad.
+  Redirección con > y >>, escritura de varias líneas, comprobación de errores, archivos vacíos, caracteres de control, fecha y hora, captura de resultados y registros de actividad. Introducción a bytes, hexadecimal, posiciones y truncamiento. Laboratorio con una muestra sintética de 4096 bytes: lectura de regiones, sobrescritura de los primeros 12 y últimos 16 bytes, sustitución total con ceros, patrones fijos o bytes seudoaleatorios, comparación de contenido y hashes SHA256. Diferencias entre corrupción de archivos y borrado seguro. Las prácticas binarias utilizan Windows PowerShell 5.1 y funciones de .NET, invocadas desde CMD.
 
 - **Capítulo 4: Leer y buscar dentro de archivos**  
   TYPE, MORE, FINDSTR y FOR /F; búsqueda literal y recursiva, lectura por líneas, separación de campos y extracción de indicadores.
@@ -59,10 +62,7 @@ Cómo trabajar con los ejemplos y preparar el laboratorio mínimo.
 ### Parte V — Proyectos Integradores
 
 - **Capítulo 9: Construyendo tus primeras herramientas**  
-  Tres proyectos que reúnen lo aprendido:
-  - Reconocimiento automático con salida en archivos y códigos de resultado.
-  - Dropper de laboratorio con una Run Key y generación de un marcador de texto.
-  - File watcher por sondeo, con registro de nombres nuevos, señal de parada y duración limitada.
+  Tres proyectos que reúnen lo aprendido: reconocimiento automático con salida en archivos y códigos de resultado; dropper de laboratorio con una Run Key y generación de un marcador de texto; y file watcher por sondeo, con registro de nombres nuevos, señal de parada y duración limitada.
 
 ### Epílogo
 
@@ -82,9 +82,11 @@ El aviso completo de derechos de autor y condiciones de distribución se encuent
 
 Para quienes conocen Windows a nivel usuario y quieren aprender a escribir sus primeros scripts en un contexto de análisis de malware y Red Team.
 
-No necesitas conocimientos previos de Batch, PowerShell o Python.
+No necesitas conocimientos previos de Batch, PowerShell o Python. El libro explica las funciones de PowerShell utilizadas en el laboratorio de escritura binaria.
 
-Los ejemplos emplean nombres y rutas propios de un laboratorio: `samples\`, `staging\`, `reports\`, `recon_local.bat`, `dropper_lab.bat` y `file_watcher.bat`.
+Los ejemplos emplean nombres y rutas propios de un laboratorio: `samples\`, `staging\`, `reports\`, `sandbox\loop_lab\`, `sandbox\byte_lab\`, `recon_local.bat`, `dropper_lab.bat` y `file_watcher.bat`.
+
+Las prácticas incluyen instrucciones para observar los resultados, reconocer errores y detener los bucles.
 
 ---
 
