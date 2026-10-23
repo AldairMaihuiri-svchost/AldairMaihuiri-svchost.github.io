@@ -48,7 +48,7 @@ Selected research and tools. Bilingual writeups use the same language order thro
 
   [EN](dispenser-no-token-analysis-en/) · [ES](dispenser-no-token-analysis/)
 
-  Windows PE32 analysis following the application entry, automatic GUI-to-thread transition, MD5 construction, cash-cassette selection, device-library calls, and cleanup routines. Includes a catalogue of 319 functions, 109 static imports, and four Python models with verified results.
+  Static analysis of Windows PE32 malware designed to make ATMs repeatedly dispense cash without authorization, continuing while eligible banknotes remain and no stop condition is reached. Covers the application entry, automatic GUI-to-thread transition, MD5 construction, cash-cassette selection, device-library calls, and cleanup routines. Includes a catalogue of 319 functions, 109 static imports, and four Python models with verified results.
 
 - **LockBit string deobfuscation and static analysis**
 
