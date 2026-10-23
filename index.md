@@ -10,6 +10,9 @@ author: Aldair Maihuiri
 
 Systems Engineering student (3rd cycle) · Lima, Peru · Member of the **Carnival Threads** research group
 
+“One day, in the not-too-distant future, I will crypto-obfuscate the sun to cause an eclipse.”
+— Epigraph from my book in progress, The Art of Obfuscation.
+
 **Looking for:** remote junior roles in malware analysis, reverse engineering, detection engineering, or programming (C / C++ / Rust).
 **Contact:** [axlaldair6@gmail.com](mailto:axlaldair6@gmail.com) · [LinkedIn](https://www.linkedin.com/in/AldairMaihuiri) · [GitHub](https://github.com/AldairMaihuiri-svchost)
 **Languages:** Spanish (native) · English (technical reading; writing with translation tools)
@@ -42,7 +45,9 @@ I analyze Windows PE and Linux ELF malware at the assembly and debugger level, t
 - **[LockBit string deobfuscation and static analysis](lockbit-ransomware-analysis/)**: affine cipher, stack strings, and dynamic API resolution, reversed and documented step by step.
 - **[Configurable loader, infostealer and clipper](analisisdemalwarestealerloader/writeup_loader_infostealer_en)**: x64 loader that reconstructs and injects an embedded DLL, with anti-VM checks, HTTPS C2 configuration, and a companion YARA rule.
 - **[45 YARA rules on YARAhub](https://yaraify.abuse.ch/user/51747/)**: detections grouped by malware family, several already matching real samples.
+- **[DES-M — Structural Modification of DES S-boxes: Reference Implementation, Differential Analysis, and Preliminary Study of Language Model Behavior](DES-M/des-m-en)** ([versión en español](DES-M/des-m))
 
+  Ground-up DES implementation in Python, verified against FIPS 46-3 and pycryptodome. Construction of DES-M, a custom S-box variant, with full differential analysis (DDT) and Algebraic Normal Form of all eight original S-boxes. Includes an empirical evaluation of four LLMs (ChatGPT, Gemini, DeepSeek, Qwen) under black-box, gray-box, and white-box conditions — with a methodological finding on model confabulation during cryptographic verification tasks. (testing for Scopus)
 ---
 
 ## Books
