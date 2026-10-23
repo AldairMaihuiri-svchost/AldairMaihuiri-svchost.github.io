@@ -42,61 +42,67 @@ I analyze Windows PE and Linux ELF malware at the assembly and debugger level, t
 
 ## Featured work
 
-- **[LockBit string deobfuscation and static analysis](lockbit-ransomware-analysis/)**: affine cipher, stack strings, and dynamic API resolution, reversed and documented step by step.
-- **[Configurable loader, infostealer and clipper](analisisdemalwarestealerloader/writeup_loader_infostealer_en)**: x64 loader that reconstructs and injects an embedded DLL, with anti-VM checks, HTTPS C2 configuration, and a companion YARA rule.
-- **[45 YARA rules on YARAhub](https://yaraify.abuse.ch/user/51747/)**: detections grouped by malware family, several already matching real samples.
-- **[DES-M — Structural Modification of DES S-boxes: Reference Implementation, Differential Analysis, and Preliminary Study of Language Model Behavior](DES-M/des-m-en)** ([versión en español](DES-M/des-m))
+Selected research and tools. Bilingual writeups use the same language order throughout this page: **EN · ES**.
+
+- **Dispenser NO_TOKEN — Static Reverse Engineering**
+
+  [EN](dispenser-no-token-analysis-en/) · [ES](dispenser-no-token-analysis/)
+
+  Windows PE32 analysis following the application entry, automatic GUI-to-thread transition, MD5 construction, cash-cassette selection, device-library calls, and cleanup routines. Includes a catalogue of 319 functions, 109 static imports, and four Python models with verified results.
+
+- **LockBit string deobfuscation and static analysis**
+
+  [ES](lockbit-ransomware-analysis/)
+
+  Affine cipher, stack strings, and dynamic API resolution, reversed and documented step by step.
+
+- **Configurable loader, infostealer and clipper**
+
+  [EN](analisisdemalwarestealerloader/writeup_loader_infostealer_en) · [ES](analisisdemalwarestealerloader/writeup_loader_infostealer)
+
+  An x64 loader that reconstructs and injects an embedded DLL, with anti-VM checks, HTTPS C2 configuration, and a companion YARA rule.
+
+- **45 YARA rules on YARAhub**
+
+  [Published rules](https://yaraify.abuse.ch/user/51747/)
+
+  Detections grouped by malware family, several already matching real samples.
+
+- **DES-M — Structural Modification of DES S-boxes: Reference Implementation, Differential Analysis, and Preliminary Study of Language Model Behavior**
+
+  [EN](DES-M/des-m-en) · [ES](DES-M/des-m)
 
   Ground-up DES implementation in Python, verified against FIPS 46-3 and pycryptodome. Construction of DES-M, a custom S-box variant, with full differential analysis (DDT) and Algebraic Normal Form of all eight original S-boxes. Includes an empirical evaluation of four LLMs (ChatGPT, Gemini, DeepSeek, Qwen) under black-box, gray-box, and white-box conditions — with a methodological finding on model confabulation during cryptographic verification tasks. (testing for Scopus)
-  
----
-
-## Books
-
-Technical books on offensive Windows development. 
-Written in Spanish. Free and paid.
-
-- **[Batch Ofensivo — Scripts de Windows para Red 
-  Team desde Cero](Libros/batch-ofensivo)**
-
-  Practical introduction to offensive Batch scripting: 
-  file system operations, reconnaissance, and 
-  persistence from scratch. No prior scripting 
-  experience required. Three working tools built 
-  across nine chapters.
-  Free · PDF · Spanish · 2026
-
-| # | Title | Status |
-|---|---|---|
-| 1 | [Batch Ofensivo](Libros/batch-ofensivo) | Free — available |
-...
 
 ---
 
 ## Malware analysis
 
-- **[LockBit Ransomware — Static Reverse Engineering Writeup](lockbit-ransomware-analysis/)**
+- **Dispenser NO_TOKEN — Static Reverse Engineering**
+
+  [EN](dispenser-no-token-analysis-en/) · [ES](dispenser-no-token-analysis/)
+
+  A detailed static investigation of a 32-bit Windows application that loads `cscwcng.dll`, resolves eight device functions, parses cassette data, and coordinates dispensing and transport requests. The writeup follows the entry point, window messages, thread creation, MD5 helpers, selection logic, file overwriting, and Registry cleanup. Ghidra and assembly references support the recovered arguments, return values, and structures. Includes the complete 319-function catalogue, 109 imports, and four Python models using public or synthetic inputs. Confirmed behavior, interpretations, and unresolved questions are kept distinct.
+
+- **LockBit Ransomware — Static Reverse Engineering Writeup**
+
+  [ES](lockbit-ransomware-analysis/)
 
   The technical research, reverse engineering, analysis, reasoning, scripting, and writing were carried out entirely by me. Large Language Models (LLMs) were used solely to correct spelling and grammatical errors.
 
-- **[Configurable Loader, Infostealer and Cryptocurrency Clipper — Static Reverse Engineering Writeup](analisisdemalwarestealerloader/writeup_loader_infostealer_en)** ([versión en español](analisisdemalwarestealerloader/writeup_loader_infostealer))
+- **Configurable Loader, Infostealer and Cryptocurrency Clipper — Static Reverse Engineering Writeup**
+
+  [EN](analisisdemalwarestealerloader/writeup_loader_infostealer_en) · [ES](analisisdemalwarestealerloader/writeup_loader_infostealer)
 
   Static reverse engineering of a configurable x64 loader that decodes, decompresses, and reconstructs an embedded DLL and injects it into a remote process. The DLL performs anti-VM checks, receives HTTPS C2 configuration (obfuscated with XOR `0xA2`), and, depending on that configuration, enables a cryptocurrency clipper, screen capture, browser and application data collection, registry queries, and second-stage execution. Not confirmed as a coinminer. Includes the companion YARA rule.
 
   Prepared from my malware-analysis notes and reviewed technical evidence. A Large Language Model assisted with translation, structure, and copy-editing; I reviewed the final text and am responsible for its publication.
 
-- **[LockBit String Deobfuscation — Affine Cipher DLL Loading](lockbit-string-deobfuscation)**
+- **LockBit String Deobfuscation — Affine Cipher DLL Loading**
+
+  [Read the writeup](lockbit-string-deobfuscation)
 
   Public teaser: how LockBit encrypts DLL names on the stack to evade IAT detection, the affine cipher reversed step by step, and a Python script replicating the decryption. The decryption scripts, full function analysis, and the complete 11-block breakdown are reserved for the in-progress writeup *LockBit Ransomware — Complete Static and Dynamic Analysis*.
-
----
-
-## Red team tools and sources
-
-Source code and tooling from my work, available in the repository:
-
-- **[Red teamer tools](https://github.com/AldairMaihuiri-svchost/AldairMaihuiri-svchost.github.io/tree/main/Red%20teamer%20tools)**
-- [Full repository — AldairMaihuiri-svchost.github.io](https://github.com/AldairMaihuiri-svchost/AldairMaihuiri-svchost.github.io/tree/main)
 
 ---
 
@@ -121,35 +127,73 @@ Highlighted rules:
 
 ---
 
+## Books
+
+Technical books on offensive Windows development, written in Spanish.
+
+- **Batch Ofensivo — Scripts de Windows para Red Team desde Cero**
+
+  [ES](Libros/batch-ofensivo)
+
+  Practical introduction to offensive Batch scripting: file system operations, reconnaissance, and persistence from scratch. No prior scripting experience required. Three working tools built across nine chapters.
+
+  **Free · PDF · Spanish · 2026**
+
+---
+
+## Cryptography research
+
+- **DES-M — Structural Modification of DES S-boxes: Reference Implementation, Differential Analysis, and Preliminary Study of Language Model Behavior**
+
+  [EN](DES-M/des-m-en) · [ES](DES-M/des-m)
+
+  Ground-up DES implementation in Python, verified against FIPS 46-3 and pycryptodome. Construction of DES-M, a custom S-box variant, with full differential analysis (DDT) and Algebraic Normal Form of all eight original S-boxes. Includes an empirical evaluation of four LLMs (ChatGPT, Gemini, DeepSeek, Qwen) under black-box, gray-box, and white-box conditions — with a methodological finding on model confabulation during cryptographic verification tasks.
+
+---
+
 ## Ghidra: obfuscated binaries
 
 A training series distinct from the crackmes below: these are already-obfuscated Windows PE32+ binaries, solved through pure static analysis in Ghidra — no execution during analysis, only cross-references, the decompiler, and the raw memory view. Each level isolates one obfuscation technique, building on the ones before it.
 
-- **[Level 1 — String Encryption](Ghidra-obfuscated/ghidra-obfuscated-level1-en)** ([versión en español](Ghidra-obfuscated/ghidra-obfuscated-level1))
+- **Level 1 — String Encryption**
+
+  [EN](Ghidra-obfuscated/ghidra-obfuscated-level1-en) · [ES](Ghidra-obfuscated/ghidra-obfuscated-level1)
 
   A PE32+ crackme that hides its password and result messages from a surface-level strings scan: the prompt is assembled byte by byte in memory instead of referenced as a literal, the real password is copied through a chain of heap buffers instead of compared directly, and both output messages are single-byte XOR-encrypted. Solved end to end by following cross-references from a known CRT import (`strcmp`) to the validation logic, then decoding the encrypted buffers in Python.
 
-- **[Level 2 — Control Flow Obfuscation](Ghidra-obfuscated/ghidra-obfuscated-level2-en)** ([versión en español](Ghidra-obfuscated/ghidra-obfuscated-level2))
+- **Level 2 — Control Flow Obfuscation**
+
+  [EN](Ghidra-obfuscated/ghidra-obfuscated-level2-en) · [ES](Ghidra-obfuscated/ghidra-obfuscated-level2)
 
   A PE32+ crackme that reuses the same opaque predicate — a constant, always-true condition with the algebraic form of the Pythagorean theorem — as a guard for three separate dead branches, each one a copy of the real validation logic with the result inverted. The password itself isn't a fixed string but the solution to a modular equation (a weighted sum of the input reduced to a single byte), which has no unique answer, so solving it means generating a valid input and confirming it against the real binary rather than extracting an embedded literal.
 
-- **[Level 3 — Indirection](Ghidra-obfuscated/ghidra-obfuscated-level3-en)** ([versión en español](Ghidra-obfuscated/ghidra-obfuscated-level3))
+- **Level 3 — Indirection**
+
+  [EN](Ghidra-obfuscated/ghidra-obfuscated-level3-en) · [ES](Ghidra-obfuscated/ghidra-obfuscated-level3)
 
   A PE32+ crackme that splits password validation across two chained helper functions joined by an AND — a length check and a content check kept completely separate — and builds the reference password byte by byte in memory at runtime, including a 32-bit little-endian integer, instead of storing it as a literal string anywhere in the binary.
 
-- **[Level 4 — Virtual Tables and Hash Validation](Ghidra-obfuscated/ghidra-obfuscated-level4-en)** ([versión en español](Ghidra-obfuscated/ghidra-obfuscated-level4))
+- **Level 4 — Virtual Tables and Hash Validation**
+
+  [EN](Ghidra-obfuscated/ghidra-obfuscated-level4-en) · [ES](Ghidra-obfuscated/ghidra-obfuscated-level4)
 
   A PE32+ crackme compiled in C++ that dispatches validation through a factory table, builds objects with their own vtable at runtime, and validates the password by comparing its 32-bit FNV-1a hash against a constant — with a second object, reachable through the same table, whose only method always returns false. Solved with an SMT solver (Z3) once the hash algorithm and its constants were recognized.
 
-- **[Level 5 — The Final Level](Ghidra-obfuscated/ghidra-obfuscated-level5-en)** ([versión en español](Ghidra-obfuscated/ghidra-obfuscated-level5))
+- **Level 5 — The Final Level**
+
+  [EN](Ghidra-obfuscated/ghidra-obfuscated-level5-en) · [ES](Ghidra-obfuscated/ghidra-obfuscated-level5)
 
   A synthesis level combining techniques from the previous four — dynamic password construction, an opaque predicate, vtable dispatch, a hand-rolled comparison avoiding `strcmp` — with two new elements: runtime code relocation to executable memory (with no real effect against static analysis) and a debugger check that genuinely blocks the success path.
 
-- **[Level 6 — State Machine and Binary Payload Delivery](Ghidra-obfuscated/ghidra-obfuscated-level6-en)** ([versión en español](Ghidra-obfuscated/ghidra-obfuscated-level6))
+- **Level 6 — State Machine and Binary Payload Delivery**
+
+  [EN](Ghidra-obfuscated/ghidra-obfuscated-level6-en) · [ES](Ghidra-obfuscated/ghidra-obfuscated-level6)
 
   A PE32+ crackme that validates its password through a custom state machine of bit rotations and hash-like constants, fed by a stack buffer overflow that spreads the ten input bytes across separately named local variables. Breaking the algorithm with Z3 was only half the problem: the solution key contains non-printable bytes that neither a keyboard nor a naive shell pipe can deliver intact to a Windows binary running under Wine.
 
-- **[Level 7 — Mixed Boolean-Arithmetic and Dynamic Shellcode](Ghidra-obfuscated/ghidra-obfuscated-level7-en)** ([versión en español](Ghidra-obfuscated/ghidra-obfuscated-level7))
+- **Level 7 — Mixed Boolean-Arithmetic and Dynamic Shellcode**
+
+  [EN](Ghidra-obfuscated/ghidra-obfuscated-level7-en) · [ES](Ghidra-obfuscated/ghidra-obfuscated-level7)
 
   A PE32+ crackme that hides a standard FNV-1a hash behind mixed boolean-arithmetic identities (OR/AND standing in for XOR, XOR plus carry standing in for addition), and hides the comparison's target value inside a shellcode fragment the binary itself assembles and decrypts into executable memory before invoking it. Solved with a meet-in-the-middle search instead of an SMT solver, after catching two self-made errors — a corrupted byte reconstruction and a miscalculated hex constant — by verifying results against the real binary rather than trusting the math alone.
 
@@ -165,11 +209,21 @@ A training series distinct from the crackmes below: these are already-obfuscated
 | CM04 | Stack string construction · movb per character · same primitive as LockBit |
 | CM05 | Custom comparison loop · transformation · stack canary · SSP bypass via ptrace |
 
-- **[Crackme 01 — Hardcoded strcmp with GDB](crackmes/cm1-strcmp)** ([versión en español](crackmes/cm1-strcmp-es))
-- **[Crackme 02 — Numeric Serial: Deduction by Disassembly and Live Patching with Rust](crackmes/cm2-numeric)**
-- **[Crackme 03 — XOR Stack Strings: Ciphertext Embedded in the Instruction Stream](crackmes/cm3-xor)** ([versión en español](crackmes/cm3-xor-es))
-- **[Crackme 04 — Pure Stack Strings: Ten movb Instructions That strings Cannot See](crackmes/cm4-stackstring)** ([versión en español](crackmes/cm4-stackstring-es))
-- **[Crackme 05 — Transform Before Compare: The First Crackme Without strcmp](crackmes/cm5-transform)** ([versión en español](crackmes/cm5-transform-es))
+- **Crackme 01 — Hardcoded strcmp with GDB**
+
+  [EN](crackmes/cm1-strcmp) · [ES](crackmes/cm1-strcmp-es)
+- **Crackme 02 — Numeric Serial: Deduction by Disassembly and Live Patching with Rust**
+
+  [Read the writeup](crackmes/cm2-numeric)
+- **Crackme 03 — XOR Stack Strings: Ciphertext Embedded in the Instruction Stream**
+
+  [EN](crackmes/cm3-xor) · [ES](crackmes/cm3-xor-es)
+- **Crackme 04 — Pure Stack Strings: Ten movb Instructions That strings Cannot See**
+
+  [EN](crackmes/cm4-stackstring) · [ES](crackmes/cm4-stackstring-es)
+- **Crackme 05 — Transform Before Compare: The First Crackme Without strcmp**
+
+  [EN](crackmes/cm5-transform) · [ES](crackmes/cm5-transform-es)
 
 All challenge binaries: [github.com/AldairMaihuiri-svchost/Crackmes](https://github.com/AldairMaihuiri-svchost/Crackmes)
 
@@ -195,17 +249,20 @@ Custom ptrace instrumentation, binary patchers, and analysis scripts (Rust and P
 
 ---
 
-## Cryptography research
+## Red team tools and sources
 
-- **[DES-M — Structural Modification of DES S-boxes: Reference Implementation, Differential Analysis, and Preliminary Study of Language Model Behavior](DES-M/des-m-en)** ([versión en español](DES-M/des-m))
+Source code and tooling from my work, available in the repository:
 
-  Ground-up DES implementation in Python, verified against FIPS 46-3 and pycryptodome. Construction of DES-M, a custom S-box variant, with full differential analysis (DDT) and Algebraic Normal Form of all eight original S-boxes. Includes an empirical evaluation of four LLMs (ChatGPT, Gemini, DeepSeek, Qwen) under black-box, gray-box, and white-box conditions — with a methodological finding on model confabulation during cryptographic verification tasks.
+- **[Red teamer tools](https://github.com/AldairMaihuiri-svchost/AldairMaihuiri-svchost.github.io/tree/main/Red%20teamer%20tools)**
+- [Full repository — AldairMaihuiri-svchost.github.io](https://github.com/AldairMaihuiri-svchost/AldairMaihuiri-svchost.github.io/tree/main)
 
 ---
 
 ## Methodology
 
 Analysis, reverse engineering, and scripting are my own work. Where a language model helped with spelling, translation, copy-editing, or structure, the corresponding writeup says so. Everything here is public, so errors can be found and reported: if you spot one, open an issue or contact me.
+
+---
 
 ## About
 
@@ -221,4 +278,6 @@ I am a student and self-taught researcher. I publish what I analyze because unde
 
 © 2026 Gino Aldair Maihuiri Romero
 
-This site is open source. [Improve this page](https://github.com/AldairMaihuiri-svchost/AldairMaihuiri-svchost.github.io/edit/main/index.md).
+Original writeups state their attribution and reuse terms in their copyright notices.
+
+[Site source — improve this page](https://github.com/AldairMaihuiri-svchost/AldairMaihuiri-svchost.github.io/edit/main/index.md).
