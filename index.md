@@ -44,23 +44,29 @@ I analyze Windows PE and Linux ELF malware at the assembly and debugger level, t
 
 Selected research and tools. Bilingual writeups use the same language order throughout this page: **EN · ES**.
 
+- **DES-M — Structural Modification of DES S-boxes: Reference Implementation, Differential Analysis, and Preliminary Study of Language Model Behavior**
+
+  [EN](DES-M/des-m-en) · [ES](DES-M/des-m)
+
+  Ground-up DES implementation in Python, verified against FIPS 46-3 and pycryptodome. Construction of DES-M, a custom S-box variant, with full differential analysis (DDT) and Algebraic Normal Form of all eight original S-boxes. Includes an empirical evaluation of four LLMs (ChatGPT, Gemini, DeepSeek, Qwen) under black-box, gray-box, and white-box conditions — with a methodological finding on model confabulation during cryptographic verification tasks. (testing for Scopus)
+
 - **Obfuscation against AI** (testing for Scopus)
 
   [EN](obfuscation-against-ai/) · [ES](ofuscacion-contra-la-ia/)
 
   Exploratory study of six model responses to one obfuscated Linux ELF. A byte, line and word counter is hidden behind control-flow flattening, opaque predicates, encoded strings, and inert Nisshoku Batch text. Documents incorrect functional interpretations, a partial refusal, and declared truncation.
 
-- **Dispenser NO_TOKEN — Static Reverse Engineering**
-
-  [EN](dispenser-no-token-analysis-en/) · [ES](dispenser-no-token-analysis/)
-
-  Static analysis of Windows PE32 malware designed to make ATMs repeatedly dispense cash without authorization, continuing while eligible banknotes remain and no stop condition is reached. Covers the application entry, automatic GUI-to-thread transition, MD5 construction, cash-cassette selection, device-library calls, and cleanup routines. Includes a catalogue of 319 functions, 109 static imports, and four Python models with verified results.
-
 - **LockBit string deobfuscation and static analysis**
 
   [ES](lockbit-ransomware-analysis/)
 
   Affine cipher, stack strings, and dynamic API resolution, reversed and documented step by step.
+
+- **Dispenser NO_TOKEN — Static Reverse Engineering**
+
+  [EN](dispenser-no-token-analysis-en/) · [ES](dispenser-no-token-analysis/)
+
+  Static analysis of Windows PE32 malware designed to make ATMs repeatedly dispense cash without authorization, continuing while eligible banknotes remain and no stop condition is reached. Covers the application entry, automatic GUI-to-thread transition, MD5 construction, cash-cassette selection, device-library calls, and cleanup routines. Includes a catalogue of 319 functions, 109 static imports, and four Python models with verified results.
 
 - **Configurable loader, infostealer and clipper**
 
@@ -74,11 +80,11 @@ Selected research and tools. Bilingual writeups use the same language order thro
 
   Detections grouped by malware family, several already matching real samples.
 
-- **DES-M — Structural Modification of DES S-boxes: Reference Implementation, Differential Analysis, and Preliminary Study of Language Model Behavior**
+- **Dispenser NO_TOKEN — Static Reverse Engineering**
 
-  [EN](DES-M/des-m-en) · [ES](DES-M/des-m)
+  [EN](dispenser-no-token-analysis-en/) · [ES](dispenser-no-token-analysis/)
 
-  Ground-up DES implementation in Python, verified against FIPS 46-3 and pycryptodome. Construction of DES-M, a custom S-box variant, with full differential analysis (DDT) and Algebraic Normal Form of all eight original S-boxes. Includes an empirical evaluation of four LLMs (ChatGPT, Gemini, DeepSeek, Qwen) under black-box, gray-box, and white-box conditions — with a methodological finding on model confabulation during cryptographic verification tasks. (testing for Scopus)
+  Static analysis of Windows PE32 malware designed to make ATMs repeatedly dispense cash without authorization, continuing while eligible banknotes remain and no stop condition is reached. Covers the application entry, automatic GUI-to-thread transition, MD5 construction, cash-cassette selection, device-library calls, and cleanup routines. Includes a catalogue of 319 functions, 109 static imports, and four Python models with verified results.
 
 ---
 
