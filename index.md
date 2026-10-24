@@ -44,11 +44,11 @@ I analyze Windows PE and Linux ELF malware at the assembly and debugger level, t
 
 Selected research and tools. Bilingual writeups use the same language order throughout this page: **EN · ES**.
 
-- **DES-M — Structural Modification of DES S-boxes: Reference Implementation, Differential Analysis, and Preliminary Study of Language Model Behavior**
+- **DES-M — Structural Modification of DES S-boxes: Reference Implementation, Differential Analysis, and Preliminary Study of Language Model Behavior** (testing for Scopus)
 
   [EN](DES-M/des-m-en) · [ES](DES-M/des-m)
 
-  Ground-up DES implementation in Python, verified against FIPS 46-3 and pycryptodome. Construction of DES-M, a custom S-box variant, with full differential analysis (DDT) and Algebraic Normal Form of all eight original S-boxes. Includes an empirical evaluation of four LLMs (ChatGPT, Gemini, DeepSeek, Qwen) under black-box, gray-box, and white-box conditions — with a methodological finding on model confabulation during cryptographic verification tasks. (testing for Scopus)
+  Ground-up DES implementation in Python, verified against FIPS 46-3 and pycryptodome. Construction of DES-M, a custom S-box variant, with full differential analysis (DDT) and Algebraic Normal Form of all eight original S-boxes. Includes an empirical evaluation of four LLMs (ChatGPT, Gemini, DeepSeek, Qwen) under black-box, gray-box, and white-box conditions — with a methodological finding on model confabulation during cryptographic verification tasks.
 
 - **Obfuscation against AI** (testing for Scopus)
 
