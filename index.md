@@ -44,6 +44,12 @@ I analyze Windows PE and Linux ELF malware at the assembly and debugger level, t
 
 Selected research and tools. Bilingual writeups use the same language order throughout this page: **EN · ES**.
 
+- **Obfuscation against AI** (testing for Scopus)
+
+  [EN](obfuscation-against-ai/) · [ES](ofuscacion-contra-la-ia/)
+
+  Exploratory study of six model responses to one obfuscated Linux ELF. A byte, line and word counter is hidden behind control-flow flattening, opaque predicates, encoded strings, and inert Nisshoku Batch text. Documents incorrect functional interpretations, a partial refusal, and declared truncation.
+
 - **Dispenser NO_TOKEN — Static Reverse Engineering**
 
   [EN](dispenser-no-token-analysis-en/) · [ES](dispenser-no-token-analysis/)
@@ -138,6 +144,16 @@ Technical books on offensive Windows development, written in Spanish.
   Practical introduction to offensive Batch scripting: file system operations, reconnaissance, and persistence from scratch. No prior scripting experience required. Three working tools built across nine chapters.
 
   **Free · PDF · Spanish · 2026**
+
+---
+
+## AI and obfuscation research
+
+- **Obfuscation against AI**
+
+  [EN](obfuscation-against-ai/) · [ES](ofuscacion-contra-la-ia/)
+
+  A case study of one Linux ELF containing unreachable dynamic-loading blocks and Nisshoku Batch text stored as inert data. The program counts bytes, lines, and words and writes a CSV report. Compares six reported responses from Gemini 3.5 Flash-Lite, DeepSeek-V4.1-Flash-1017, Qwen Max 3.8, Claude Sonnet 5.5, Xiaomi MiMo 2.6-Pro, and GPT-6. Examines functional recovery, reachability errors, a partial refusal, and declared truncation, supported by 134 functional checks and 128 cases on an instrumented build of the same source.
 
 ---
 
