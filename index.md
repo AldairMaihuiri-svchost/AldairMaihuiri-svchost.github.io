@@ -11,7 +11,7 @@ author: Aldair Maihuiri
 Systems Engineering student (3rd cycle) · Lima, Peru · Member of the **Carnival Threads** research group
 
 “One day, in the not-too-distant future, I will crypto-obfuscate the sun to cause an eclipse.”
-— Epigraph from my book in progress, The Art of Obfuscation.
+— Epigraph from my book in progress.
 
 **Looking for:** remote junior roles in malware analysis, reverse engineering, detection engineering, or programming (C / C++ / Rust).
 **Contact:** [axlaldair6@gmail.com](mailto:axlaldair6@gmail.com) · [LinkedIn](https://www.linkedin.com/in/AldairMaihuiri) · [GitHub](https://github.com/AldairMaihuiri-svchost)
