@@ -66,5 +66,13 @@ Detailed solutions with full assembly analysis in English and Spanish:
 [Blog](https://aldairmaihuiri-svchost.github.io) · [GitHub](https://github.com/AldairMaihuiri-svchost) · [LinkedIn](https://www.linkedin.com/in/AldairMaihuiri) · [X](https://x.com/AldairMaihuiri)
 
 ---
+## 📚 Cita Académica y DOI (Citation)
+
+Este repositorio y sus investigaciones asociadas están archivados y cuentan con un Identificador de Objeto Digital (DOI). Si utilizas este material, código o scripts en tus propios proyectos o publicaciones, por favor cítalo:
+
+[![DOI](https://zenodo.org/badge/1323664524.svg)](https://doi.org/10.5281/zenodo.23882558)
+
+**Formato APA:**
+> Maihuiri, A. (2026). *Colección de Investigación en Ciberseguridad, Análisis de Malware y Red Team* (v0.8-draft) [Software y Documentación]. Zenodo. https://doi.org/10.5281/zenodo.23882558
 
 © 2026 Gino Aldair Maihuiri Romero. Challenges are free to use for learning purposes.
