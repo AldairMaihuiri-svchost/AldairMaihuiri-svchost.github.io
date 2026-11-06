@@ -37,6 +37,7 @@ Technical books on offensive Windows development, written in Spanish.
 
 ## At a glance
 
+- Author of **["Batch Ofensivo"](https://aldairmaihuiri-svchost.github.io/Libros/Batch_Ofensivo.pdf)**, a free 116-page book on Windows Batch scripting for Red Team operations and malware analysis labs
 - **45 YARA rules** published on [YARAhub](https://yaraify.abuse.ch/user/51747/), covering AgentTesla, XWorm, Formbook, MassLogger, PhantomStealer, Cobalt Strike PowerShell loaders, PHP webshells, LockBit, SolarisLoader, and ATM malware
 - Rules with **real-world matches** in YARAify scans, including AgentTesla PowerShell loaders, PurgeRoster JScript loaders, and LockBit
 - Static reverse-engineering writeups on **LockBit** and on an **x64 loader with infostealer and cryptocurrency clipper**
