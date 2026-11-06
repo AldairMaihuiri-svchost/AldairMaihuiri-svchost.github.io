@@ -21,6 +21,20 @@ I analyze Windows PE and Linux ELF malware at the assembly and debugger level, t
 
 ---
 
+## Books
+
+Technical books on offensive Windows development, written in Spanish.
+
+- **Batch Ofensivo — Scripts de Windows para Red Team desde Cero**
+
+  [ES](Libros/batch-ofensivo)
+
+  Practical introduction to offensive Batch scripting: file system operations, reconnaissance, and persistence from scratch. No prior scripting experience required. Three working tools built across nine chapters.
+
+  **Free · PDF · Spanish · 2026**
+
+---
+
 ## At a glance
 
 - **45 YARA rules** published on [YARAhub](https://yaraify.abuse.ch/user/51747/), covering AgentTesla, XWorm, Formbook, MassLogger, PhantomStealer, Cobalt Strike PowerShell loaders, PHP webshells, LockBit, SolarisLoader, and ATM malware
@@ -130,20 +144,6 @@ Highlighted rules:
 - **LockBit**: detects the dynamic API resolution pattern from the LockBit sample I analyzed.
 - **`SH_Downloader_*`**: rules for observed downloaders (the `Vcimanagement` variant and a multi-architecture variant).
 - **ConfigurableLoaderInfostealer**: detects the outer loader by combining two sample-specific artifacts: the custom 64-symbol decoder alphabet and a static fragment of the encoded internal DLL blob. It is a signature for this loader, not a generic infostealer rule.
-
----
-
-## Books
-
-Technical books on offensive Windows development, written in Spanish.
-
-- **Batch Ofensivo — Scripts de Windows para Red Team desde Cero**
-
-  [ES](Libros/batch-ofensivo)
-
-  Practical introduction to offensive Batch scripting: file system operations, reconnaissance, and persistence from scratch. No prior scripting experience required. Three working tools built across nine chapters.
-
-  **Free · PDF · Spanish · 2026**
 
 ---
 
