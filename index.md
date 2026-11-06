@@ -8,9 +8,9 @@ author: Aldair Maihuiri
 
 **Malware analysis · Reverse engineering · Detection engineering**
 
-Systems Engineering student (3rd cycle) · Lima, Peru · Member of the **Carnival Threads** research group
+Systems Engineering student (3rd cycle) · Lima, Peru 
 
-“One day, in the not-too-distant future, I will crypto-obfuscate the sun to cause an eclipse.”
+“Un día no muy lejano Criptofuscaré el sol para causar un eclipse”
 — Epigraph from my book in progress.
 
 **Looking for:** remote junior roles in malware analysis, reverse engineering, detection engineering, or programming (C / C++ / Rust).
